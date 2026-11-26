@@ -1,0 +1,11 @@
+[package]
+name = "hidpp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Minimal, safety-guarded HID++ 2.0 client for Logitech PRO X Superlight"
+
+[dependencies]
+thiserror = "2"
+log = "0.4"
+hidapi = { version = "2.6", default-features = false, features = ["linux-native-basic-udev"] }

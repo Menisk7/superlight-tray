@@ -1,0 +1,42 @@
+[package]
+name = "superlight-tray"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tray app for the Logitech PRO X Superlight: battery level and DPI"
+authors = ["Menisk7"]
+
+[[bin]]
+name = "superlight-tray"
+path = "src/main.rs"
+
+[dependencies]
+hidpp = { path = "../hidpp" }
+hidapi = { version = "2.6", default-features = false, features = ["linux-native-basic-udev"] }
+log = "0.4"
+simplelog = "0.12"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+directories = "6"
+crossbeam-channel = "0.5"
+
+[target.'cfg(windows)'.dependencies]
+tray-icon = "0.21"
+winreg = "0.55"
+windows-sys = { version = "0.60", features = [
+  "Win32_Foundation",
+  "Win32_System_Console",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_Security",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = { version = "0.3", features = ["blocking"] }
+notify-rust = "4"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"

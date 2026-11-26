@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/hidpp", "crates/app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Menisk7/superlight-tray"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
