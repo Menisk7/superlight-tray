@@ -11,7 +11,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 use crate::config::{self, Config};
 use crate::worker::{self, Cmd, Event, State};
-use crate::{backup, icon, platform, ui};
+use crate::{backup, icon, input_windows, platform, ui};
 
 const WM_WAKE: u32 = WM_APP + 1;
 
@@ -60,6 +60,7 @@ struct Items {
     battery: MenuItem,
     dpi: Submenu,
     presets: Vec<(u16, CheckMenuItem)>,
+    set_dpi: MenuItem,
     save: MenuItem,
     restore: MenuItem,
     factory: MenuItem,
@@ -71,6 +72,12 @@ struct Items {
 }
 
 pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
+    // Crisp icon and dialog on scaled displays.
+    unsafe {
+        windows_sys::Win32::UI::HiDpi::SetProcessDpiAwarenessContext(
+            windows_sys::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_SYSTEM_AWARE,
+        );
+    }
     let tid = unsafe { GetCurrentThreadId() };
     let wake = move || unsafe {
         PostThreadMessageW(tid, WM_WAKE, 0, 0);
@@ -96,6 +103,7 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
             .iter()
             .map(|&d| (d, CheckMenuItem::new(format!("{d} DPI"), true, false, None)))
             .collect(),
+        set_dpi: MenuItem::new("Set DPI…", false, None),
         save: MenuItem::new(ui::save_label(&State::default()), false, None),
         restore: MenuItem::new("Restore last backup…", true, None),
         factory: MenuItem::new("Restore factory profile…", true, None),
@@ -120,6 +128,7 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
         &it.battery,
         &PredefinedMenuItem::separator(),
         &it.dpi,
+        &it.set_dpi,
         &it.save,
         &PredefinedMenuItem::separator(),
         &recovery,
@@ -151,6 +160,7 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
             p.set_enabled(ok && s.caps.as_ref().is_none_or(|c| c.supports(*d)));
         }
         it.save.set_text(ui::save_label(s));
+        it.set_dpi.set_enabled(ok);
         it.save.set_enabled(ok && s.onboard && s.dpi.is_some());
         it.restore.set_enabled(ok && s.onboard);
         it.factory.set_enabled(ok && s.onboard);
@@ -189,6 +199,21 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
             } else if let Some((d, _)) = it.presets.iter().find(|(_, p)| *p.id() == id) {
                 let _ = cmd.send(Cmd::SetDpi(*d));
                 apply(&state, &it); // undo the automatic check toggle until the mouse confirms
+            } else if id == it.set_dpi.id() {
+                let mut text = state.dpi.map(|d| d.to_string()).unwrap_or_default();
+                let prompt = ui::set_dpi_prompt(state.caps.as_ref());
+                while let Some(t) = input_windows::input_box(ui::SET_DPI_TITLE, &prompt, &text) {
+                    match ui::parse_dpi(&t, state.caps.as_ref()) {
+                        Ok(v) => {
+                            let _ = cmd.send(Cmd::SetDpi(v));
+                            break;
+                        }
+                        Err(e) => {
+                            message_box(ui::SET_DPI_TITLE, &e, MB_ICONWARNING | MB_OK);
+                            text = t;
+                        }
+                    }
+                }
             } else if id == it.save.id() {
                 if let Some(d) = state.dpi {
                     if confirm(&format!("Save {d} DPI to the mouse?"), ui::SAVE_CONFIRM) {

@@ -111,6 +111,11 @@ impl Tray for SlTray {
                 ..Default::default()
             }
             .into(),
+            item("Set DPI…", ok, |t| {
+                let (cmd, caps, cur) = (t.cmd.clone(), t.state.caps.clone(), t.state.dpi);
+                // dialogs block, so never run them inside the D-Bus callback
+                std::thread::spawn(move || ask_dpi(cmd, caps, cur));
+            }),
             confirm_sub(
                 ui::save_label(s),
                 ok && s.onboard && s.dpi.is_some(),
@@ -173,6 +178,65 @@ impl Tray for SlTray {
             MenuItem::Separator,
             item("Quit", true, |_| std::process::exit(0)),
         ]
+    }
+}
+
+enum Asked {
+    Value(String),
+    Cancelled,
+    NoDialogTool,
+}
+
+/// Text input via zenity (GNOME/GTK desktops) or kdialog (KDE).
+fn input_box(title: &str, prompt: &str, initial: &str) -> Asked {
+    use std::process::Command;
+    let tries: [(&str, Vec<&str>); 2] = [
+        (
+            "zenity",
+            vec!["--entry", "--title", title, "--text", prompt, "--entry-text", initial],
+        ),
+        ("kdialog", vec!["--title", title, "--inputbox", prompt, initial]),
+    ];
+    for (prog, args) in tries {
+        match Command::new(prog).args(&args).output() {
+            Ok(out) if out.status.success() => {
+                return Asked::Value(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            }
+            Ok(_) => return Asked::Cancelled,
+            Err(_) => continue, // not installed, try the next one
+        }
+    }
+    Asked::NoDialogTool
+}
+
+fn ask_dpi(cmd: Sender<Cmd>, caps: Option<hidpp::dpi::DpiCaps>, current: Option<u16>) {
+    let mut text = current.map(|d| d.to_string()).unwrap_or_default();
+    let mut prompt = ui::set_dpi_prompt(caps.as_ref());
+    loop {
+        match input_box(ui::SET_DPI_TITLE, &prompt, &text) {
+            Asked::Value(t) => match ui::parse_dpi(&t, caps.as_ref()) {
+                Ok(v) => {
+                    let _ = cmd.send(Cmd::SetDpi(v));
+                    return;
+                }
+                Err(e) => {
+                    // show the problem inside the next prompt
+                    prompt = format!("{e}\n\n{}", ui::set_dpi_prompt(caps.as_ref()));
+                    text = t;
+                }
+            },
+            Asked::Cancelled => return,
+            Asked::NoDialogTool => {
+                notify(
+                    ui::SET_DPI_TITLE.into(),
+                    "Install 'zenity' (GNOME/GTK) or 'kdialog' (KDE) for the DPI input window, \
+                     or run: superlight-tray --set-dpi <value>"
+                        .into(),
+                    true,
+                );
+                return;
+            }
+        }
     }
 }
 
