@@ -11,7 +11,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 use crate::config::{self, Config};
 use crate::worker::{self, Cmd, Event, State};
-use crate::{backup, icon, input_windows, platform, ui};
+use crate::{backup, dpi_window, icon, platform, ui};
 
 const WM_WAKE: u32 = WM_APP + 1;
 
@@ -200,20 +200,14 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
                 let _ = cmd.send(Cmd::SetDpi(*d));
                 apply(&state, &it); // undo the automatic check toggle until the mouse confirms
             } else if id == it.set_dpi.id() {
-                let mut text = state.dpi.map(|d| d.to_string()).unwrap_or_default();
-                let prompt = ui::set_dpi_prompt(state.caps.as_ref());
-                while let Some(t) = input_windows::input_box(ui::SET_DPI_TITLE, &prompt, &text) {
-                    match ui::parse_dpi(&t, state.caps.as_ref()) {
-                        Ok(v) => {
-                            let _ = cmd.send(Cmd::SetDpi(v));
-                            break;
-                        }
-                        Err(e) => {
-                            message_box(ui::SET_DPI_TITLE, &e, MB_ICONWARNING | MB_OK);
-                            text = t;
-                        }
-                    }
-                }
+                let current = state.dpi.unwrap_or(800);
+                let values = ui::slider_values(state.caps.as_ref(), state.dpi);
+                let live = cmd.clone();
+                // applies live while the window is open; Cancel re-applies `current`
+                let picked = dpi_window::pick_dpi(values, current, &ui::SLIDER_TICKS, move |v| {
+                    let _ = live.send(Cmd::SetDpi(v));
+                });
+                log::info!("Set DPI window closed: {picked:?}");
             } else if id == it.save.id() {
                 if let Some(d) = state.dpi {
                     if confirm(&format!("Save {d} DPI to the mouse?"), ui::SAVE_CONFIRM) {

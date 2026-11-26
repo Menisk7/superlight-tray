@@ -181,62 +181,69 @@ impl Tray for SlTray {
     }
 }
 
-enum Asked {
-    Value(String),
-    Cancelled,
-    NoDialogTool,
-}
-
-/// Text input via zenity (GNOME/GTK desktops) or kdialog (KDE).
-fn input_box(title: &str, prompt: &str, initial: &str) -> Asked {
+/// DPI slider via zenity (GNOME/GTK desktops) or kdialog (KDE). These sliders are
+/// linear, so the result is snapped to the nearest value the mouse supports.
+/// Returns Ok(None) when cancelled, Err(()) when neither tool is installed.
+fn slider_dialog(current: u16, min: u16, max: u16) -> Result<Option<u16>, ()> {
     use std::process::Command;
+    let (cur, min, max) = (current.to_string(), min.to_string(), max.to_string());
+    let text = "Drag to choose the DPI";
     let tries: [(&str, Vec<&str>); 2] = [
         (
             "zenity",
-            vec!["--entry", "--title", title, "--text", prompt, "--entry-text", initial],
+            vec![
+                "--scale",
+                "--title",
+                ui::SET_DPI_TITLE,
+                "--text",
+                text,
+                "--min-value",
+                &min,
+                "--max-value",
+                &max,
+                "--step",
+                "50",
+                "--value",
+                &cur,
+            ],
         ),
-        ("kdialog", vec!["--title", title, "--inputbox", prompt, initial]),
+        (
+            "kdialog",
+            vec!["--title", ui::SET_DPI_TITLE, "--slider", text, &min, &max, "50"],
+        ),
     ];
     for (prog, args) in tries {
         match Command::new(prog).args(&args).output() {
             Ok(out) if out.status.success() => {
-                return Asked::Value(String::from_utf8_lossy(&out.stdout).trim().to_string())
+                return Ok(String::from_utf8_lossy(&out.stdout)
+                    .trim()
+                    .parse::<u32>()
+                    .ok()
+                    .map(|v| v.min(u16::MAX as u32) as u16))
             }
-            Ok(_) => return Asked::Cancelled,
+            Ok(_) => return Ok(None),
             Err(_) => continue, // not installed, try the next one
         }
     }
-    Asked::NoDialogTool
+    Err(())
 }
 
 fn ask_dpi(cmd: Sender<Cmd>, caps: Option<hidpp::dpi::DpiCaps>, current: Option<u16>) {
-    let mut text = current.map(|d| d.to_string()).unwrap_or_default();
-    let mut prompt = ui::set_dpi_prompt(caps.as_ref());
-    loop {
-        match input_box(ui::SET_DPI_TITLE, &prompt, &text) {
-            Asked::Value(t) => match ui::parse_dpi(&t, caps.as_ref()) {
-                Ok(v) => {
-                    let _ = cmd.send(Cmd::SetDpi(v));
-                    return;
-                }
-                Err(e) => {
-                    // show the problem inside the next prompt
-                    prompt = format!("{e}\n\n{}", ui::set_dpi_prompt(caps.as_ref()));
-                    text = t;
-                }
-            },
-            Asked::Cancelled => return,
-            Asked::NoDialogTool => {
-                notify(
-                    ui::SET_DPI_TITLE.into(),
-                    "Install 'zenity' (GNOME/GTK) or 'kdialog' (KDE) for the DPI input window, \
-                     or run: superlight-tray --set-dpi <value>"
-                        .into(),
-                    true,
-                );
-                return;
-            }
+    let cur = current.unwrap_or(800);
+    let (min, max) = caps.as_ref().map(|c| (c.min, c.max)).unwrap_or((100, 25600));
+    match slider_dialog(cur, min, max) {
+        Ok(Some(v)) => {
+            let v = caps.as_ref().map(|c| c.clamp(v)).unwrap_or(v);
+            let _ = cmd.send(Cmd::SetDpi(v));
         }
+        Ok(None) => {}
+        Err(()) => notify(
+            ui::SET_DPI_TITLE.into(),
+            "Install 'zenity' (GNOME/GTK) or 'kdialog' (KDE) for the DPI slider, \
+             or run: superlight-tray --set-dpi <value>"
+                .into(),
+            true,
+        ),
     }
 }
 

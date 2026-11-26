@@ -4,6 +4,7 @@ A small tray app for the **Logitech PRO X Superlight** on Windows and Linux. Wri
 
 - The tray icon *is* the battery: large percentage digits plus a coloured gauge (green → yellow → red, blue while charging, grey "–" when the mouse is asleep or off).
 - Right-click (or left-click) the icon for the battery level and a **DPI** submenu with presets. DPI changes apply instantly.
+- **Set DPI…** opens a slider (100–25600: steps of 50 up to 3200, coarser above). The DPI applies as you release the slider, so you can try it on the spot. **OK** keeps it, **Cancel**/Esc puts the old value back. Arrow keys move one step, Page Up/Down move 8. On Linux the slider comes from zenity or kdialog and applies on OK.
 - **Save DPI to mouse memory**: writes the DPI into the mouse's onboard profile, so it sticks after power-off and works on any computer. This is opt-in and heavily guarded (see *Safety*).
 - Remembers your last DPI and puts it back when the mouse wakes up or reconnects.
 - Optional start on login. Tiny footprint: one background thread, polls the battery once a minute.

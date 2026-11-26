@@ -3,9 +3,9 @@
 mod backup;
 mod cli;
 mod config;
-mod icon;
 #[cfg(windows)]
-mod input_windows;
+mod dpi_window;
+mod icon;
 mod platform;
 #[cfg(target_os = "linux")]
 mod tray_linux;
@@ -68,10 +68,11 @@ fn run_cli(args: &[String]) -> anyhow::Result<()> {
         "--factory-reset-profile" => cli::factory_reset(!yes),
         #[cfg(windows)]
         "--ask-dpi" => {
-            // opens the same input window as the tray's "Set DPI…" and prints the result
+            // opens the same slider window as the tray's "Set DPI…" (prints instead of applying)
             let caps = hidpp::dpi::parse_dpi_list(&[100, 0xE000 | 50, 25600, 0]).ok();
-            let t = input_windows::input_box(ui::SET_DPI_TITLE, &ui::set_dpi_prompt(caps.as_ref()), "1600");
-            println!("{:?}", t.map(|t| ui::parse_dpi(&t, caps.as_ref())));
+            let values = ui::slider_values(caps.as_ref(), Some(1600));
+            let r = dpi_window::pick_dpi(values, 1600, &ui::SLIDER_TICKS, |v| println!("live: {v}"));
+            println!("result: {r:?}");
             Ok(())
         }
         "--backups" => {

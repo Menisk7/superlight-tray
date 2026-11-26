@@ -15,6 +15,17 @@ fn main() {
         res.set_icon(out.to_str().unwrap());
         res.set("FileDescription", "Superlight Tray");
         res.set("ProductName", "Superlight Tray");
+        // Modern (Common Controls v6) look for the slider, buttons and message boxes.
+        res.set_manifest(
+            r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0"
+        processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
+    </dependentAssembly>
+  </dependency>
+</assembly>"#,
+        );
         if let Err(e) = res.compile() {
             println!("cargo:warning=could not embed icon: {e}");
         }

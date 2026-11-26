@@ -71,37 +71,53 @@ pub fn icon_charging(s: &State) -> bool {
 
 pub const SET_DPI_TITLE: &str = "Set DPI";
 
-pub fn set_dpi_prompt(caps: Option<&DpiCaps>) -> String {
-    match caps {
-        Some(c) => format!("Enter a DPI value ({}–{}, steps of {}):", c.min, c.max, step_of(c)),
-        None => "Enter a DPI value:".into(),
+/// Tick marks drawn on the slider.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const SLIDER_TICKS: [u16; 7] = [400, 800, 1600, 3200, 6400, 12800, 25600];
+
+/// Every DPI the slider can stop at. Fine steps where people actually play
+/// (50 up to 3200), coarser above, so 400–3200 gets most of the track.
+/// Only values the mouse supports; the current DPI is always included.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn slider_values(caps: Option<&DpiCaps>, current: Option<u16>) -> Vec<u16> {
+    let mut v = Vec::new();
+    let mut d: u32 = 100;
+    while d <= 25600 {
+        v.push(d as u16);
+        d += if d < 3200 {
+            50
+        } else if d < 6400 {
+            100
+        } else if d < 12800 {
+            200
+        } else {
+            400
+        };
     }
+    if let Some(c) = caps {
+        v.retain(|x| c.supports(*x));
+    }
+    if let Some(cur) = current {
+        if !v.contains(&cur) {
+            v.push(cur);
+            v.sort_unstable();
+        }
+    }
+    if v.is_empty() {
+        v.push(current.unwrap_or(800));
+    }
+    v
 }
 
-fn step_of(c: &DpiCaps) -> u16 {
-    c.ranges.iter().map(|r| r.2).find(|s| *s > 0).unwrap_or(1)
-}
-
-/// Validate what the user typed. Errors are shown to the user as-is.
-pub fn parse_dpi(input: &str, caps: Option<&DpiCaps>) -> Result<u16, String> {
-    let t = input.trim();
-    if t.is_empty() {
-        return Err("Please type a number.".into());
-    }
-    let v: u32 = t.parse().map_err(|_| format!("\"{t}\" is not a number."))?;
-    let (min, max) = caps.map(|c| (c.min, c.max)).unwrap_or((100, 25600));
-    if v < min as u32 || v > max as u32 {
-        return Err(format!("{v} is out of range. The mouse supports {min}–{max} DPI."));
-    }
-    let v = v as u16;
-    match caps {
-        Some(c) if !c.supports(v) => Err(format!(
-            "{v} is not possible: the mouse supports steps of {}. Nearest value: {}.",
-            step_of(c),
-            c.clamp(v)
-        )),
-        _ => Ok(v),
-    }
+/// Slider position of the value closest to `dpi`.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn slider_index(values: &[u16], dpi: u16) -> usize {
+    values
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, v)| v.abs_diff(dpi))
+        .map(|(i, _)| i)
+        .unwrap_or(0)
 }
 
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -128,31 +144,43 @@ mod tests {
     }
 
     #[test]
-    fn parse_dpi_accepts_valid_values() {
-        assert_eq!(parse_dpi("1600", Some(&caps())), Ok(1600));
-        assert_eq!(parse_dpi("  850 ", Some(&caps())), Ok(850));
-        assert_eq!(parse_dpi("100", Some(&caps())), Ok(100));
-        assert_eq!(parse_dpi("25600", Some(&caps())), Ok(25600));
+    fn slider_covers_full_range_with_fine_low_steps() {
+        let v = slider_values(Some(&caps()), None);
+        assert_eq!(v.first(), Some(&100));
+        assert_eq!(v.last(), Some(&25600));
+        assert_eq!(v.len(), 159); // 62 + 32 + 32 + 32 + 1
+        assert!(v.windows(2).all(|w| w[0] < w[1]));
+        // every 50 between 100 and 3200 is reachable
+        for d in (100..=3200).step_by(50) {
+            assert!(v.contains(&d), "{d}");
+        }
+        // low range gets well over a third of the track
+        let low = v.iter().filter(|d| **d <= 3200).count();
+        assert!(low * 100 / v.len() > 35);
+        for t in SLIDER_TICKS {
+            assert!(v.contains(&t));
+        }
     }
 
     #[test]
-    fn parse_dpi_rejects_bad_input_with_helpful_message() {
-        assert!(parse_dpi("", Some(&caps())).is_err());
-        assert!(parse_dpi("abc", Some(&caps())).unwrap_err().contains("not a number"));
-        assert!(parse_dpi("-5", Some(&caps())).is_err());
-        assert!(parse_dpi("99999999999", Some(&caps())).is_err());
-        assert!(parse_dpi("50", Some(&caps())).unwrap_err().contains("out of range"));
-        assert!(parse_dpi("30000", Some(&caps())).unwrap_err().contains("out of range"));
-        assert!(parse_dpi("1620", Some(&caps()))
-            .unwrap_err()
-            .contains("Nearest value: 1600"));
+    fn slider_keeps_current_custom_value() {
+        let v = slider_values(Some(&caps()), Some(7050));
+        assert!(v.contains(&7050));
+        assert_eq!(v[slider_index(&v, 7050)], 7050);
+        assert!(v.windows(2).all(|w| w[0] < w[1]));
     }
 
     #[test]
-    fn prompt_shows_range() {
-        assert_eq!(
-            set_dpi_prompt(Some(&caps())),
-            "Enter a DPI value (100–25600, steps of 50):"
-        );
+    fn slider_index_picks_nearest() {
+        let v = slider_values(Some(&caps()), None);
+        assert_eq!(v[slider_index(&v, 800)], 800);
+        assert_eq!(v[slider_index(&v, 820)], 800);
+        assert_eq!(v[slider_index(&v, 60000)], 25600);
+    }
+
+    #[test]
+    fn slider_respects_device_limits() {
+        let small = hidpp::dpi::parse_dpi_list(&[400, 800, 1600, 0]).unwrap();
+        assert_eq!(slider_values(Some(&small), None), vec![400, 800, 1600]);
     }
 }
