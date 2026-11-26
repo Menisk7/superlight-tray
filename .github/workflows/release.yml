@@ -24,9 +24,18 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ github.ref_name }}"
+          $num = $v.TrimStart('v')
           New-Item -ItemType Directory dist | Out-Null
-          Copy-Item target/release/superlight-tray.exe dist/superlight-tray.exe
+          Copy-Item target/release/superlight-tray.exe dist/superlight-tray-portable.exe
           Compress-Archive -Path target/release/superlight-tray.exe, README.md, LICENSE -DestinationPath "dist/superlight-tray-$v-windows-x86_64.zip"
+          # installer (Inno Setup): per-user, shows up in Installed apps
+          cargo run --release -p superlight-tray --example installer_assets -- target/installer-assets
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc /Q "/DAppVersion=$num" "/DSourceExe=$PWD\target\release\superlight-tray.exe" "/DAssets=$PWD\target\installer-assets" "/O$PWD\dist" packaging\windows\superlight-tray.iss
+          if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
+          Get-ChildItem dist
       - uses: actions/upload-artifact@v4
         with:
           name: windows

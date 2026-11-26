@@ -15,7 +15,7 @@ Tested on: PRO X Superlight (1st gen, reports itself as "PRO X Wireless") on LIG
 
 | OS | File |
 |----|------|
-| Windows 10/11 | `superlight-tray.exe` (portable, no installer) |
+| Windows 10/11 | `superlight-tray-<ver>-setup.exe`: installer, no admin needed, shows up in *Installed apps*. Or `superlight-tray-portable.exe` with no install. |
 | Debian 11+, Ubuntu 22.04+, Mint, Pop!_OS | `superlight-tray_<ver>_amd64.deb` |
 | Fedora, Rocky Linux / RHEL / Alma 8 & 9 | `superlight-tray-<ver>-1.x86_64.rpm` |
 | anything else | `superlight-tray-<ver>-linux-x86_64.tar.gz` |
@@ -24,6 +24,10 @@ Tested on: PRO X Superlight (1st gen, reports itself as "PRO X Wireless") on LIG
 sudo apt install ./superlight-tray_*_amd64.deb      # Debian/Ubuntu
 sudo dnf install ./superlight-tray-*.x86_64.rpm     # Fedora/Rocky
 ```
+
+**Windows installer:** installs to `%LOCALAPPDATA%\Programs\Superlight Tray`, adds a Start menu entry and optionally starts the app at sign-in. Uninstall from *Settings → Apps → Installed apps*. That closes the tray and removes the startup entry, then asks whether to delete your settings and backups too (No by default).
+
+**Linux packages** show up in your package manager and app menu. Remove with `sudo apt remove superlight-tray` or `sudo dnf remove superlight-tray`. Your settings in `~/.config/superlight-tray`, backups in `~/.local/share/superlight-tray` and the autostart file `~/.config/autostart/superlight-tray.desktop` stay behind, as with most Linux apps. Delete them by hand for a clean slate.
 
 The packages install a udev rule (`/usr/lib/udev/rules.d/60-superlight-tray.rules`) so your user can access the receiver without root. **Unplug and replug the receiver once after installing.** With the tarball, copy that rule yourself, then run `sudo udevadm control --reload-rules`.
 
