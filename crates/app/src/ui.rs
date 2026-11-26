@@ -41,7 +41,7 @@ pub fn save_label(s: &State) -> String {
 }
 
 pub fn tooltip(s: &State) -> String {
-    let mut t = String::from("Superlight");
+    let mut t = String::from("Superlight PRO");
     if s.connected {
         if let Some(b) = s.battery {
             t += &format!(": {}%{}", b.percent, charging_suffix(b.charging));
