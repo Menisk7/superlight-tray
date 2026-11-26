@@ -245,11 +245,15 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
             } else if id == it.refresh.id() {
                 let _ = cmd.send(Cmd::Refresh);
             } else if id == it.autostart.id() {
-                let want = it.autostart.is_checked();
+                // Flip what the registry says, not the tick (the menu toggles the
+                // tick itself, which can leave it out of step with the registry).
+                let want = !platform::autostart_enabled();
                 if let Err(e) = platform::set_autostart(want) {
                     notify("Autostart".into(), e.to_string(), true);
                 }
-                it.autostart.set_checked(platform::autostart_enabled());
+                let now = platform::autostart_enabled();
+                log::info!("start with Windows: wanted {want}, now {now}");
+                it.autostart.set_checked(now);
             }
         }
     }
