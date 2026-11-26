@@ -28,7 +28,11 @@ pub fn read(dev: &mut Device) -> Result<Battery> {
             3 => Charging::Full,
             _ => Charging::Error,
         };
-        return Ok(Battery { percent: r[0].min(100), charging, millivolts: None });
+        return Ok(Battery {
+            percent: r[0].min(100),
+            charging,
+            millivolts: None,
+        });
     }
     if dev.has_feature(BATTERY_VOLTAGE) {
         let r = dev.request(BATTERY_VOLTAGE, 0, &[])?;
@@ -42,7 +46,11 @@ pub fn read(dev: &mut Device) -> Result<Battery> {
             3 => Charging::Full,
             _ => Charging::Error,
         };
-        return Ok(Battery { percent: r[0].min(100), charging, millivolts: None });
+        return Ok(Battery {
+            percent: r[0].min(100),
+            charging,
+            millivolts: None,
+        });
     }
     Err(Error::FeatureNotSupported(BATTERY_VOLTAGE))
 }
@@ -58,8 +66,16 @@ pub fn decode_voltage(mv: u16, flags: u8) -> Battery {
             _ => Charging::Error,
         };
     }
-    let percent = if charging == Charging::Full { 100 } else { voltage_to_percent(mv) };
-    Battery { percent, charging, millivolts: Some(mv) }
+    let percent = if charging == Charging::Full {
+        100
+    } else {
+        voltage_to_percent(mv)
+    };
+    Battery {
+        percent,
+        charging,
+        millivolts: Some(mv),
+    }
 }
 
 /// Li-ion discharge curve for Logitech mice (same points Solaar uses), interpolated.

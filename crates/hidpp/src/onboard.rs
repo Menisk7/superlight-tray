@@ -107,7 +107,11 @@ pub fn crc16(data: &[u8]) -> u16 {
     for &b in data {
         crc ^= (b as u16) << 8;
         for _ in 0..8 {
-            crc = if crc & 0x8000 != 0 { (crc << 1) ^ 0x1021 } else { crc << 1 };
+            crc = if crc & 0x8000 != 0 {
+                (crc << 1) ^ 0x1021
+            } else {
+                crc << 1
+            };
         }
     }
     crc
@@ -145,7 +149,10 @@ pub fn parse_directory(data: &[u8]) -> Vec<DirEntry> {
         if sector == 0xFFFF || sector == 0 {
             break;
         }
-        out.push(DirEntry { sector, enabled: e[2] != 0 });
+        out.push(DirEntry {
+            sector,
+            enabled: e[2] != 0,
+        });
     }
     out
 }
@@ -168,14 +175,21 @@ pub fn parse_profile(data: &[u8]) -> Result<ProfileView> {
         let o = DPI_OFFSET + 2 * i;
         *d = u16::from_le_bytes([data[o], data[o + 1]]);
     }
-    Ok(ProfileView { report_rate: data[0], default_dpi_index: data[1], shift_dpi_index: data[2], dpi })
+    Ok(ProfileView {
+        report_rate: data[0],
+        default_dpi_index: data[1],
+        shift_dpi_index: data[2],
+        dpi,
+    })
 }
 
 /// Build the new sector content with the default DPI slot set to `new_dpi`.
 /// Refuses anything that would change more than the DPI slot and the CRC.
 pub fn build_dpi_update(old: &[u8], new_dpi: u16) -> Result<Vec<u8>> {
     if !sector_crc_ok(old) {
-        return Err(Error::Blocked("current profile has a bad CRC; refusing to modify it".into()));
+        return Err(Error::Blocked(
+            "current profile has a bad CRC; refusing to modify it".into(),
+        ));
     }
     let view = parse_profile(old)?;
     let slot = view.default_dpi_index as usize;
@@ -184,7 +198,9 @@ pub fn build_dpi_update(old: &[u8], new_dpi: u16) -> Result<Vec<u8>> {
     }
     let cur = view.dpi[slot];
     if cur == 0 || cur == 0xFFFF || !(50..=50000).contains(&cur) {
-        return Err(Error::Blocked(format!("default DPI slot holds {cur:#06x}; layout not as expected")));
+        return Err(Error::Blocked(format!(
+            "default DPI slot holds {cur:#06x}; layout not as expected"
+        )));
     }
     if !(100..=32000).contains(&new_dpi) {
         return Err(Error::Blocked(format!("{new_dpi} DPI out of safe range")));
@@ -233,7 +249,10 @@ pub enum WriteOutcome {
 fn preflight(dev: &mut Device) -> Result<(ProfilesInfo, u16)> {
     let info = info(dev)?;
     if !KNOWN_PROFILE_FORMATS.contains(&info.profile_format) {
-        return Err(Error::Blocked(format!("unknown profile format {}", info.profile_format)));
+        return Err(Error::Blocked(format!(
+            "unknown profile format {}",
+            info.profile_format
+        )));
     }
     if !(64..=4096).contains(&info.sector_size) {
         return Err(Error::Blocked(format!("unexpected sector size {}", info.sector_size)));
@@ -258,11 +277,19 @@ pub fn snapshot(dev: &mut Device) -> Result<Snapshot> {
     let a = read_sector(dev, sector, info.sector_size)?;
     let b = read_sector(dev, sector, info.sector_size)?;
     if a != b {
-        return Err(Error::Verify("two reads of the profile differ; wireless link unstable".into()));
+        return Err(Error::Verify(
+            "two reads of the profile differ; wireless link unstable".into(),
+        ));
     }
     let rom_sector = rom_sector_for(&info, sector);
     let rom_data = read_sector(dev, rom_sector, info.sector_size).ok();
-    Ok(Snapshot { info, sector, data: a, rom_sector, rom_data })
+    Ok(Snapshot {
+        info,
+        sector,
+        data: a,
+        rom_sector,
+        rom_data,
+    })
 }
 
 /// Write a profile sector and verify. On mismatch, restore `original` and verify that.
@@ -271,7 +298,9 @@ fn write_verified(dev: &mut Device, sector: u16, size: u16, new: &[u8], original
         return Err(Error::Blocked(format!("sector {sector:#06x} may not be written")));
     }
     if new.len() != size as usize || !sector_crc_ok(new) {
-        return Err(Error::Blocked("refusing to write a sector with wrong size or CRC".into()));
+        return Err(Error::Blocked(
+            "refusing to write a sector with wrong size or CRC".into(),
+        ));
     }
     let first = raw_write(dev, sector, new).and_then(|_| read_sector(dev, sector, size));
     match first {
@@ -369,14 +398,18 @@ pub fn rom_to_user_sector(rom: &[u8]) -> Result<Vec<u8>> {
     let mut out = rom.to_vec();
     if !sector_crc_ok(rom) {
         if rom[n - 2..] != [0xFF, 0xFF] {
-            return Err(Error::Verify("factory ROM profile has a bad CRC; not copying it".into()));
+            return Err(Error::Verify(
+                "factory ROM profile has a bad CRC; not copying it".into(),
+            ));
         }
         set_crc(&mut out);
     }
     let v = parse_profile(&out)?;
     let idx = v.default_dpi_index as usize;
     if idx >= DPI_SLOTS || !(50..=50000).contains(&v.dpi[idx]) {
-        return Err(Error::Verify("factory ROM profile does not look like a valid profile".into()));
+        return Err(Error::Verify(
+            "factory ROM profile does not look like a valid profile".into(),
+        ));
     }
     Ok(out)
 }
@@ -472,7 +505,11 @@ mod tests {
     }
 
     fn setup() -> (Arc<Mutex<Mem>>, Device) {
-        let mut m = Mem { mode: 1, current: 1, ..Default::default() };
+        let mut m = Mem {
+            mode: 1,
+            current: 1,
+            ..Default::default()
+        };
         m.sectors.insert(1, profile([800, 1600, 3200, 0, 0], 0));
         // ROM sector: no CRC stored, like the real Superlight
         let mut rom = profile([800, 1600, 3200, 6400, 0], 1);
@@ -497,7 +534,10 @@ mod tests {
         assert!(sector_crc_ok(&new));
         assert_eq!(parse_profile(&new).unwrap().dpi, [800, 1200, 0, 0, 0]);
         let diffs: Vec<usize> = (0..old.len()).filter(|&i| old[i] != new[i]).collect();
-        assert!(diffs.iter().all(|&i| i == 5 || i == 6 || i >= old.len() - 2), "{diffs:?}");
+        assert!(
+            diffs.iter().all(|&i| i == 5 || i == 6 || i >= old.len() - 2),
+            "{diffs:?}"
+        );
     }
 
     #[test]
@@ -524,7 +564,16 @@ mod tests {
         let d = [0, 1, 1, 0, 0, 2, 0, 0, 0xFF, 0xFF, 0, 0];
         assert_eq!(
             parse_directory(&d),
-            vec![DirEntry { sector: 1, enabled: true }, DirEntry { sector: 2, enabled: false }]
+            vec![
+                DirEntry {
+                    sector: 1,
+                    enabled: true
+                },
+                DirEntry {
+                    sector: 2,
+                    enabled: false
+                }
+            ]
         );
     }
 

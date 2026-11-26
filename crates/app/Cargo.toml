@@ -35,8 +35,39 @@ windows-sys = { version = "0.60", features = [
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ksni = { version = "0.3", features = ["blocking"] }
+ksni = { version = "0.3", default-features = false, features = ["blocking", "async-io"] }
 notify-rust = "4"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+
+[package.metadata.deb]
+name = "superlight-tray"
+maintainer = "Menisk7"
+copyright = "2026, Menisk7"
+license-file = ["../../LICENSE", "0"]
+extended-description = "System tray app for the Logitech PRO X Superlight: shows the battery level on the tray icon, changes DPI from the tray menu and can save it into the mouse's onboard memory with automatic backup and verification."
+section = "utils"
+priority = "optional"
+depends = "libc6 (>= 2.28)"
+recommends = "gnome-shell-extension-appindicator | plasma-workspace | xfce4-statusnotifier-plugin"
+maintainer-scripts = "../../packaging/linux/scripts/"
+assets = [
+  ["target/release/superlight-tray", "usr/bin/", "755"],
+  ["../../packaging/linux/60-superlight-tray.rules", "usr/lib/udev/rules.d/", "644"],
+  ["../../packaging/linux/superlight-tray.desktop", "usr/share/applications/", "644"],
+  ["../../README.md", "usr/share/doc/superlight-tray/README.md", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "superlight-tray"
+summary = "Tray app for the Logitech PRO X Superlight: battery and DPI"
+license = "MIT"
+post_install_script = "../../packaging/linux/scripts/postinst"
+post_uninstall_script = "../../packaging/linux/scripts/postrm"
+assets = [
+  { source = "target/release/superlight-tray", dest = "/usr/bin/superlight-tray", mode = "755" },
+  { source = "../../packaging/linux/60-superlight-tray.rules", dest = "/usr/lib/udev/rules.d/60-superlight-tray.rules", mode = "644" },
+  { source = "../../packaging/linux/superlight-tray.desktop", dest = "/usr/share/applications/superlight-tray.desktop", mode = "644" },
+  { source = "../../README.md", dest = "/usr/share/doc/superlight-tray/README.md", mode = "644", doc = true },
+]

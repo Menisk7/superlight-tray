@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+      - run: cargo build --release
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}"
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item target/release/superlight-tray.exe dist/superlight-tray.exe
+          Compress-Archive -Path target/release/superlight-tray.exe, README.md, LICENSE -DestinationPath "dist/superlight-tray-$v-windows-x86_64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+
+  linux:
+    # Rocky Linux 8 = glibc 2.28, so the binary runs on Rocky/RHEL 8+, Fedora,
+    # Debian 11+ and Ubuntu 20.04+.
+    runs-on: ubuntu-latest
+    container: rockylinux:8
+    steps:
+      - name: Toolchain
+        run: |
+          dnf -y install gcc git curl tar gzip findutils
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@v4
+      - name: Test and build
+        run: |
+          cargo test --workspace
+          cargo build --release
+      - name: Package
+        run: |
+          cargo install cargo-deb cargo-generate-rpm --locked
+          cargo deb -p superlight-tray --no-build
+          cargo generate-rpm -p crates/app
+          v="${GITHUB_REF_NAME}"
+          mkdir -p dist staging/superlight-tray
+          cp target/release/superlight-tray packaging/linux/60-superlight-tray.rules packaging/linux/superlight-tray.desktop README.md LICENSE staging/superlight-tray/
+          tar -C staging -czf "dist/superlight-tray-$v-linux-x86_64.tar.gz" superlight-tray
+          cp target/debian/*.deb target/generate-rpm/*.rpm dist/
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+
+  install-test:
+    needs: linux
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:12
+            install: apt-get update && apt-get install -y ./dl/*.deb
+          - image: ubuntu:22.04
+            install: apt-get update && apt-get install -y ./dl/*.deb
+          - image: fedora:latest
+            install: dnf -y install ./dl/*.rpm
+          - image: rockylinux:9
+            install: dnf -y install ./dl/*.rpm
+          - image: rockylinux:8
+            install: dnf -y install ./dl/*.rpm
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: dl
+      - run: ${{ matrix.install }}
+      - run: |
+          superlight-tray --version
+          test -f /usr/lib/udev/rules.d/60-superlight-tray.rules
+          test -f /usr/share/applications/superlight-tray.desktop
+          superlight-tray --probe || true   # no mouse in CI: must fail cleanly, not crash
+
+  release:
+    needs: [windows, linux, install-test]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

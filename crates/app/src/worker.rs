@@ -42,7 +42,16 @@ pub fn spawn(cfg: Arc<Mutex<Config>>, notify: impl Fn(Event) + Send + 'static) -
     let (tx, rx) = crossbeam_channel::unbounded();
     std::thread::Builder::new()
         .name("device".into())
-        .spawn(move || Worker { cfg, notify: Box::new(notify), dev: None, state: State::default(), api: None }.run(rx))
+        .spawn(move || {
+            Worker {
+                cfg,
+                notify: Box::new(notify),
+                dev: None,
+                state: State::default(),
+                api: None,
+            }
+            .run(rx)
+        })
         .expect("spawn device thread");
     tx
 }
@@ -62,7 +71,11 @@ impl Worker {
         loop {
             if Instant::now() >= next_poll {
                 self.poll();
-                let secs = if self.dev.is_some() { self.cfg.lock().unwrap().poll_seconds } else { 5 };
+                let secs = if self.dev.is_some() {
+                    self.cfg.lock().unwrap().poll_seconds
+                } else {
+                    5
+                };
                 next_poll = Instant::now() + Duration::from_secs(secs);
             }
             if last_sent.as_ref() != Some(&self.state) {
@@ -87,7 +100,11 @@ impl Worker {
     }
 
     fn message(&self, title: &str, body: impl Into<String>, error: bool) {
-        (self.notify)(Event::Message { title: title.into(), body: body.into(), error });
+        (self.notify)(Event::Message {
+            title: title.into(),
+            body: body.into(),
+            error,
+        });
     }
 
     fn connect(&mut self) {
@@ -182,7 +199,11 @@ impl Worker {
             return;
         }
         let Some(d) = self.dev.as_mut() else {
-            self.message("Mouse not connected", "Switch the mouse on (move it to wake it up) and try again.", true);
+            self.message(
+                "Mouse not connected",
+                "Switch the mouse on (move it to wake it up) and try again.",
+                true,
+            );
             return;
         };
         match cmd {
@@ -207,7 +228,11 @@ impl Worker {
             Cmd::SaveDpi(v) => {
                 if let Some(b) = self.state.battery {
                     if b.percent < 15 && b.charging == battery::Charging::Discharging {
-                        self.message("Not saved", format!("Battery is at {}%. Charge the mouse first.", b.percent), true);
+                        self.message(
+                            "Not saved",
+                            format!("Battery is at {}%. Charge the mouse first.", b.percent),
+                            true,
+                        );
                         return;
                     }
                 }

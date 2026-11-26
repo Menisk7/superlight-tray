@@ -1,0 +1,4 @@
+# superlight-tray: let the logged-in desktop user talk to Logitech LIGHTSPEED
+# receivers and the PRO X Superlight (USB cable) through hidraw, without root.
+# Only the HID++ control interface is used; this does not grant access to anything else.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c539|c53a|c53d|c53f|c545|c547|c54d|c094|c09b|c09d", TAG+="uaccess"

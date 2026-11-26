@@ -21,7 +21,14 @@ fn wide(s: &str) -> Vec<u16> {
 
 fn message_box(title: &str, body: &str, flags: u32) -> i32 {
     let (t, b) = (wide(title), wide(body));
-    unsafe { MessageBoxW(std::ptr::null_mut(), b.as_ptr(), t.as_ptr(), flags | MB_TOPMOST | MB_SETFOREGROUND) }
+    unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            b.as_ptr(),
+            t.as_ptr(),
+            flags | MB_TOPMOST | MB_SETFOREGROUND,
+        )
+    }
 }
 
 fn confirm(title: &str, body: &str) -> bool {
@@ -31,13 +38,22 @@ fn confirm(title: &str, body: &str) -> bool {
 /// Non-blocking info/error popup.
 fn notify(title: String, body: String, error: bool) {
     std::thread::spawn(move || {
-        message_box(&title, &body, if error { MB_ICONERROR } else { MB_ICONINFORMATION } | MB_OK);
+        message_box(
+            &title,
+            &body,
+            if error { MB_ICONERROR } else { MB_ICONINFORMATION } | MB_OK,
+        );
     });
 }
 
 fn tray_icon_for(s: &State) -> Option<Icon> {
     let size = unsafe { GetSystemMetrics(SM_CXSMICON) }.clamp(16, 64) as u32;
-    Icon::from_rgba(icon::render(ui::icon_percent(s), ui::icon_charging(s), size), size, size).ok()
+    Icon::from_rgba(
+        icon::render(ui::icon_percent(s), ui::icon_charging(s), size),
+        size,
+        size,
+    )
+    .ok()
 }
 
 struct Items {
@@ -76,7 +92,10 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
     let it = Items {
         battery: MenuItem::new("Looking for mouse…", false, None),
         dpi: Submenu::new("DPI", true),
-        presets: presets.iter().map(|&d| (d, CheckMenuItem::new(format!("{d} DPI"), true, false, None))).collect(),
+        presets: presets
+            .iter()
+            .map(|&d| (d, CheckMenuItem::new(format!("{d} DPI"), true, false, None)))
+            .collect(),
         save: MenuItem::new(ui::save_label(&State::default()), false, None),
         restore: MenuItem::new("Restore last backup…", true, None),
         factory: MenuItem::new("Restore factory profile…", true, None),
@@ -90,7 +109,12 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
         it.dpi.append(p)?;
     }
     let recovery = Submenu::new("Recovery", true);
-    recovery.append_items(&[&it.restore, &it.factory, &PredefinedMenuItem::separator(), &it.open_backups])?;
+    recovery.append_items(&[
+        &it.restore,
+        &it.factory,
+        &PredefinedMenuItem::separator(),
+        &it.open_backups,
+    ])?;
     let menu = Menu::new();
     menu.append_items(&[
         &it.battery,
@@ -194,7 +218,11 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
                 c.save();
                 let p = config::config_dir().join("config.toml");
                 let _ = std::process::Command::new("notepad").arg(&p).spawn();
-                notify("DPI presets".into(), "Edit 'presets' in the file that opened, save it, then restart Superlight Tray.".into(), false);
+                notify(
+                    "DPI presets".into(),
+                    "Edit 'presets' in the file that opened, save it, then restart Superlight Tray.".into(),
+                    false,
+                );
             } else if id == it.refresh.id() {
                 let _ = cmd.send(Cmd::Refresh);
             } else if id == it.autostart.id() {

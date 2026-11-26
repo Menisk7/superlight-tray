@@ -88,7 +88,9 @@ mod imp {
     pub fn single_instance() -> bool {
         use std::os::linux::net::SocketAddrExt;
         use std::os::unix::net::{SocketAddr, UnixListener};
-        let Ok(addr) = SocketAddr::from_abstract_name(b"superlight-tray-instance") else { return true };
+        let Ok(addr) = SocketAddr::from_abstract_name(b"superlight-tray-instance") else {
+            return true;
+        };
         match UnixListener::bind_addr(&addr) {
             Ok(l) => {
                 std::mem::forget(l);

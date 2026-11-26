@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Superlight Tray
+GenericName=Mouse battery and DPI
+Comment=Battery level and DPI for the Logitech PRO X Superlight
+Exec=superlight-tray
+Icon=input-mouse
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=logitech;mouse;superlight;battery;dpi;

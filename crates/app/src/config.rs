@@ -17,7 +17,12 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self { presets: vec![400, 800, 1200, 1600, 3200, 6400], last_dpi: None, reapply_on_connect: true, poll_seconds: 60 }
+        Self {
+            presets: vec![400, 800, 1200, 1600, 3200, 6400],
+            last_dpi: None,
+            reapply_on_connect: true,
+            poll_seconds: 60,
+        }
     }
 }
 
@@ -26,11 +31,15 @@ fn dirs() -> Option<directories::ProjectDirs> {
 }
 
 pub fn config_dir() -> PathBuf {
-    dirs().map(|d| d.config_dir().to_path_buf()).unwrap_or_else(|| PathBuf::from("."))
+    dirs()
+        .map(|d| d.config_dir().to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 pub fn data_dir() -> PathBuf {
-    dirs().map(|d| d.data_dir().to_path_buf()).unwrap_or_else(|| PathBuf::from("."))
+    dirs()
+        .map(|d| d.data_dir().to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 fn path() -> PathBuf {

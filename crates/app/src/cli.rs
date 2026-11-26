@@ -77,7 +77,12 @@ pub fn probe() -> Result<()> {
         bail!("no Logitech LIGHTSPEED receiver or wired Superlight found");
     }
     for c in &cands {
-        println!("found 046D:{:04X} ({:?}), {} HID++ collection(s)", c.pid, c.kind, c.paths.len());
+        println!(
+            "found 046D:{:04X} ({:?}), {} HID++ collection(s)",
+            c.pid,
+            c.kind,
+            c.paths.len()
+        );
     }
     let mut d = connect().context("could not talk to the mouse (is it switched on? is G HUB running?)")?;
     println!("\nlink:      {}", d.link());
@@ -98,7 +103,13 @@ pub fn probe() -> Result<()> {
                     f.id,
                     f.version,
                     feature_name(f.id),
-                    if f.kind & 0x80 != 0 { " (obsolete)" } else if f.kind & 0x40 != 0 { " (hidden)" } else { "" }
+                    if f.kind & 0x80 != 0 {
+                        " (obsolete)"
+                    } else if f.kind & 0x40 != 0 {
+                        " (hidden)"
+                    } else {
+                        ""
+                    }
                 )
             }
         }
@@ -131,10 +142,16 @@ pub fn probe() -> Result<()> {
     println!("\nonboard profiles:");
     let info = onboard::info(&mut d)?;
     println!("  {info:?}");
-    println!("  known format: {}", onboard::KNOWN_PROFILE_FORMATS.contains(&info.profile_format));
+    println!(
+        "  known format: {}",
+        onboard::KNOWN_PROFILE_FORMATS.contains(&info.profile_format)
+    );
     println!("  mode: {:?}", onboard::mode(&mut d));
     let cur = onboard::current_profile(&mut d);
-    println!("  current profile sector: {:?}", cur.as_ref().map(|s| format!("{s:#06x}")));
+    println!(
+        "  current profile sector: {:?}",
+        cur.as_ref().map(|s| format!("{s:#06x}"))
+    );
     println!("  current dpi index: {:?}", onboard::current_dpi_index(&mut d));
     let size = info.sector_size;
     match onboard::read_sector(&mut d, 0, size) {
@@ -202,11 +219,16 @@ pub fn save_dpi(v: u16, ask: bool) -> Result<()> {
     }
     if let Ok(b) = battery::read(&mut d) {
         if b.percent < 15 && b.charging == battery::Charging::Discharging {
-            bail!("battery is at {}%; charge the mouse before writing its memory", b.percent);
+            bail!(
+                "battery is at {}%; charge the mouse before writing its memory",
+                b.percent
+            );
         }
     }
     if ask {
-        confirm(&format!("This writes {v} DPI into the mouse's onboard profile. A backup is made first."))?;
+        confirm(&format!(
+            "This writes {v} DPI into the mouse's onboard profile. A backup is made first."
+        ))?;
     }
     let out = save_dpi_on(&mut d, &name, v)?;
     println!("{out}");
@@ -223,7 +245,9 @@ pub fn save_dpi_on(d: &mut Device, name: &str, v: u16) -> Result<String> {
     })?;
     let caps = dpi::caps(d)?;
     let _ = dpi::set(d, &caps, v);
-    let bp = path.map(|p| p.display().to_string()).unwrap_or_else(|| "(no change needed)".into());
+    let bp = path
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "(no change needed)".into());
     Ok(match out {
         onboard::WriteOutcome::Ok => format!("Saved {v} DPI to the mouse's memory and verified it.\nBackup: {bp}"),
         onboard::WriteOutcome::RolledBack(why) => {
@@ -273,7 +297,12 @@ pub fn restore(file: &Path, ask: bool) -> Result<()> {
             .filter(|s| s.sector != 0 && s.sector < onboard::ROM_BASE)
             .map(|s| format!("{:#06x}", s.sector))
             .collect();
-        confirm(&format!("Restore profile sector(s) {} from {} ({}).", list.join(", "), file.display(), b.created))?;
+        confirm(&format!(
+            "Restore profile sector(s) {} from {} ({}).",
+            list.join(", "),
+            file.display(),
+            b.created
+        ))?;
     }
     println!("{}", restore_on(&mut d, &b)?);
     Ok(())
@@ -317,5 +346,8 @@ pub fn factory_reset_on(d: &mut Device) -> Result<String> {
     let name = d.name().unwrap_or_default();
     let pre = dump_on(d, &name, "automatic backup before factory reset")?;
     let (sector, out) = onboard::restore_factory_profile(d)?;
-    Ok(format!("Factory profile copied to sector {sector:#06x}: {out:?}\nPrevious state backed up to {}", pre.display()))
+    Ok(format!(
+        "Factory profile copied to sector {sector:#06x}: {out:?}\nPrevious state backed up to {}",
+        pre.display()
+    ))
 }

@@ -48,7 +48,10 @@ fn main() {
 
 fn run_cli(args: &[String]) -> anyhow::Result<()> {
     let num = |i: usize| -> anyhow::Result<u16> {
-        args.get(i).ok_or_else(|| anyhow::anyhow!("missing DPI value"))?.parse().map_err(|_| anyhow::anyhow!("DPI must be a number"))
+        args.get(i)
+            .ok_or_else(|| anyhow::anyhow!("missing DPI value"))?
+            .parse()
+            .map_err(|_| anyhow::anyhow!("DPI must be a number"))
     };
     let yes = args.iter().any(|a| a == "--yes");
     match args[0].as_str() {
@@ -78,7 +81,11 @@ fn run_cli(args: &[String]) -> anyhow::Result<()> {
 
 fn init_log(cli: bool) {
     use simplelog::*;
-    let level = if std::env::var_os("SUPERLIGHT_DEBUG").is_some() { LevelFilter::Debug } else { LevelFilter::Info };
+    let level = if std::env::var_os("SUPERLIGHT_DEBUG").is_some() {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    };
     let mut loggers: Vec<Box<dyn SharedLogger>> = Vec::new();
     let dir = config::data_dir();
     let _ = std::fs::create_dir_all(&dir);
@@ -90,7 +97,12 @@ fn init_log(cli: bool) {
         loggers.push(WriteLogger::new(level, Config::default(), f));
     }
     if cli {
-        loggers.push(TermLogger::new(LevelFilter::Warn, Config::default(), TerminalMode::Stderr, ColorChoice::Never));
+        loggers.push(TermLogger::new(
+            LevelFilter::Warn,
+            Config::default(),
+            TerminalMode::Stderr,
+            ColorChoice::Never,
+        ));
     }
     let _ = CombinedLogger::init(loggers);
 }

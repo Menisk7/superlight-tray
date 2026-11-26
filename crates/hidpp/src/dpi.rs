@@ -19,7 +19,7 @@ impl DpiCaps {
             if step == 0 {
                 dpi == a
             } else {
-                dpi >= a && dpi <= b && (dpi - a) % step == 0
+                dpi >= a && dpi <= b && (dpi - a).is_multiple_of(step)
             }
         })
     }
@@ -28,11 +28,9 @@ impl DpiCaps {
     pub fn clamp(&self, dpi: u16) -> u16 {
         let mut best = self.min;
         for &(a, b, step) in &self.ranges {
-            let c = if step == 0 {
-                a
-            } else {
-                let v = dpi.clamp(a, b);
-                a + ((v - a + step / 2) / step) * step
+            let c = match (dpi.clamp(a, b) - a + step / 2).checked_div(step) {
+                Some(n) => a + n * step,
+                None => a,
             }
             .min(b.max(a));
             if dpi.abs_diff(c) < dpi.abs_diff(best) {
@@ -56,9 +54,10 @@ pub fn parse_dpi_list(words: &[u16]) -> Result<DpiCaps> {
                 Some((a, _, 0)) => a,
                 _ => return Err(Error::Protocol("DPI step without start value".into())),
             };
-            let to = *words.get(i + 1).filter(|v| **v != 0 && **v < 0xE000).ok_or_else(|| {
-                Error::Protocol("DPI step without end value".into())
-            })?;
+            let to = *words
+                .get(i + 1)
+                .filter(|v| **v != 0 && **v < 0xE000)
+                .ok_or_else(|| Error::Protocol("DPI step without end value".into()))?;
             ranges.push((from, to, step.max(1)));
             i += 2;
         } else {
@@ -93,7 +92,10 @@ pub fn get(dev: &mut Device) -> Result<(u16, u16)> {
 /// Set sensor DPI (RAM only). Returns the value the mouse confirmed.
 pub fn set(dev: &mut Device, caps: &DpiCaps, dpi: u16) -> Result<u16> {
     if !caps.supports(dpi) {
-        return Err(Error::Blocked(format!("{dpi} DPI is not supported (range {}-{})", caps.min, caps.max)));
+        return Err(Error::Blocked(format!(
+            "{dpi} DPI is not supported (range {}-{})",
+            caps.min, caps.max
+        )));
     }
     let b = dpi.to_be_bytes();
     dev.request(ADJUSTABLE_DPI, 3, &[0, b[0], b[1]])?;

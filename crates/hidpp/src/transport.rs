@@ -72,7 +72,11 @@ pub fn candidates(api: &hidapi::HidApi) -> Vec<Candidate> {
                 c.paths.push((info.usage(), path));
             }
         } else {
-            out.push(Candidate { pid, kind, paths: vec![(info.usage(), path)] });
+            out.push(Candidate {
+                pid,
+                kind,
+                paths: vec![(info.usage(), path)],
+            });
         }
     }
     out.sort_by_key(|c| (c.kind != LinkKind::Receiver, c.pid));
@@ -97,11 +101,18 @@ impl HidTransport {
             }
         }
         if handles.is_empty() {
-            return Err(Error::Hid(format!("could not open HID++ interface of 046D:{:04X}", c.pid)));
+            return Err(Error::Hid(format!(
+                "could not open HID++ interface of 046D:{:04X}",
+                c.pid
+            )));
         }
         // long collection (usage 2) first so writes go there
         handles.sort_by_key(|(u, _)| if *u == 2 { 0 } else { 1 });
-        Ok(Self { handles, kind: c.kind, pid: c.pid })
+        Ok(Self {
+            handles,
+            kind: c.kind,
+            pid: c.pid,
+        })
     }
 }
 
@@ -159,7 +170,11 @@ pub struct MockTransport {
 
 impl MockTransport {
     pub fn new(kind: LinkKind, responder: impl FnMut(&[u8]) -> Vec<Vec<u8>> + Send + 'static) -> Self {
-        Self { kind, queue: VecDeque::new(), responder: Box::new(responder) }
+        Self {
+            kind,
+            queue: VecDeque::new(),
+            responder: Box::new(responder),
+        }
     }
 }
 

@@ -31,7 +31,11 @@ pub struct SectorData {
 
 impl SectorData {
     pub fn new(sector: u16, data: &[u8]) -> Self {
-        Self { sector, crc_ok: sector_crc_ok(data), hex: to_hex(data) }
+        Self {
+            sector,
+            crc_ok: sector_crc_ok(data),
+            hex: to_hex(data),
+        }
     }
     pub fn bytes(&self) -> Result<Vec<u8>> {
         from_hex(&self.hex)
@@ -50,8 +54,17 @@ pub fn from_snapshot(s: &Snapshot, device: &str, reason: &str) -> BackupFile {
     new_file(device, reason, s.info.profile_format, s.info.sector_size, sectors)
 }
 
-pub fn new_file(device: &str, reason: &str, profile_format: u8, sector_size: u16, sectors: Vec<SectorData>) -> BackupFile {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+pub fn new_file(
+    device: &str,
+    reason: &str,
+    profile_format: u8,
+    sector_size: u16,
+    sectors: Vec<SectorData>,
+) -> BackupFile {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     BackupFile {
         format: 1,
         created_unix: now,
@@ -124,7 +137,7 @@ pub fn to_hex(d: &[u8]) -> String {
 }
 
 pub fn from_hex(s: &str) -> Result<Vec<u8>> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         bail!("odd hex length");
     }
     (0..s.len())
@@ -147,7 +160,12 @@ pub fn utc_string(secs: u64) -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = yoe + era * 400 + i64::from(m <= 2);
-    format!("{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}", rem / 3600, rem % 3600 / 60, rem % 60)
+    format!(
+        "{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
 }
 
 #[cfg(test)]

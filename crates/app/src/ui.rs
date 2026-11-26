@@ -68,14 +68,17 @@ pub fn icon_charging(s: &State) -> bool {
     s.connected && s.battery.is_some_and(|b| matches!(b.charging, Charging::Charging))
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const SAVE_CONFIRM: &str = "This writes the DPI into the mouse's onboard profile so it stays \
 after power-off and works on other computers.\n\n\
 Before writing, the current profile is backed up to a file. After writing, it is read back and \
 compared; if anything differs the old profile is put back automatically.\n\n\
 Continue?";
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const FACTORY_CONFIRM: &str = "Copy the factory default profile over the mouse's active \
 profile? (Default DPI 800, default buttons.) The current profile is backed up first.";
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const RESTORE_CONFIRM: &str = "Write the most recent backup back to the mouse? The current \
 profile is backed up first.";

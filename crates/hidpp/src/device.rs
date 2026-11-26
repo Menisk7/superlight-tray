@@ -35,7 +35,12 @@ impl Device {
             LinkKind::Wired => vec![WIRED_INDEX],
             LinkKind::Receiver => (1..=6).collect(),
         };
-        let mut dev = Device { transport, index: 0, features: HashMap::new(), protocol: (0, 0) };
+        let mut dev = Device {
+            transport,
+            index: 0,
+            features: HashMap::new(),
+            protocol: (0, 0),
+        };
         let mut last_err = Error::NotFound;
         for idx in indices {
             dev.index = idx;
@@ -110,10 +115,20 @@ impl Device {
     pub fn list_features(&mut self) -> Result<Vec<FeatureInfo>> {
         let fs = self.feature_index(FEATURE_SET)?;
         let count = self.raw(fs, 0, &[], TIMEOUT)?[0];
-        let mut out = vec![FeatureInfo { index: 0, id: 0, kind: 0, version: 0 }];
+        let mut out = vec![FeatureInfo {
+            index: 0,
+            id: 0,
+            kind: 0,
+            version: 0,
+        }];
         for i in 1..=count {
             let r = self.raw(fs, 1, &[i], TIMEOUT)?;
-            out.push(FeatureInfo { index: i, id: u16::from_be_bytes([r[0], r[1]]), kind: r[2], version: r[3] });
+            out.push(FeatureInfo {
+                index: i,
+                id: u16::from_be_bytes([r[0], r[1]]),
+                kind: r[2],
+                version: r[3],
+            });
         }
         Ok(out)
     }
@@ -227,7 +242,10 @@ pub(crate) mod tests {
         assert_eq!(d.index, 1);
         assert_eq!(d.protocol, (4, 2));
         assert_eq!(d.feature_index(ADJUSTABLE_DPI).unwrap(), 7);
-        assert!(matches!(d.feature_index(BATTERY_VOLTAGE), Err(Error::FeatureNotSupported(_))));
+        assert!(matches!(
+            d.feature_index(BATTERY_VOLTAGE),
+            Err(Error::FeatureNotSupported(_))
+        ));
     }
 
     #[test]

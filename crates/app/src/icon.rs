@@ -60,7 +60,10 @@ impl Canvas {
 /// (track + fill + tip) along the bottom whose color shows the level.
 pub fn render(percent: Option<u8>, charging: bool, size: u32) -> Vec<u8> {
     let s = size.max(16) as usize;
-    let mut cv = Canvas { s, px: vec![0; s * s * 4] };
+    let mut cv = Canvas {
+        s,
+        px: vec![0; s * s * 4],
+    };
     let si = s as i32;
 
     // --- battery gauge at the bottom ---
@@ -112,7 +115,13 @@ pub fn render(percent: Option<u8>, charging: bool, size: u32) -> Vec<u8> {
     let th = 5 * sy;
     let ox = (si - tw) / 2;
     let oy = 1 + (area_h - th) / 2;
-    let text_color = if percent.is_none() { FRAME } else if level_color.0 == RED.0 { RED_TEXT } else { WHITE };
+    let text_color = if percent.is_none() {
+        FRAME
+    } else if level_color.0 == RED.0 {
+        RED_TEXT
+    } else {
+        WHITE
+    };
     for pass in 0..2 {
         for (ci, ch) in text.chars().enumerate() {
             let gx = ox + ci as i32 * (3 * sx + gap);
@@ -197,7 +206,9 @@ mod tests {
                 let px = render(p, false, s);
                 assert_eq!(px.len(), (s * s * 4) as usize);
                 // some white text pixels exist
-                assert!(px.chunks(4).any(|c| c == [255, 255, 255, 255]), "size {s} {p:?}");
+                // digits are drawn: opaque, non-black pixels in the upper half
+                let top = &px[..px.len() / 2];
+                assert!(top.chunks(4).any(|c| c[3] == 255 && c[0] > 150), "size {s} {p:?}");
             }
         }
     }
