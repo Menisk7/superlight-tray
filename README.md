@@ -1,104 +1,124 @@
 # Superlight Tray
 
-A small tray app for the **Logitech PRO X Superlight** on Windows and Linux. Written in Rust; no G HUB needed.
+A tiny tray app for the **Logitech PRO X Superlight**. It shows the battery on the tray icon and lets you change DPI from the menu. No G HUB needed. Works on Windows and Linux.
 
-- The tray icon *is* the battery: large percentage digits plus a coloured gauge (green → yellow → red, blue while charging, grey "–" when the mouse is asleep or off).
-- Right-click (or left-click) the icon for the battery level and a **DPI** submenu with presets. DPI changes apply instantly.
-- **Set DPI…** opens a slider (100–25600: steps of 50 up to 3200, coarser above). The DPI applies as you release the slider, so you can try it on the spot. **OK** keeps it, **Cancel**/Esc puts the old value back. Arrow keys move one step, Page Up/Down move 8. On Linux the slider comes from zenity or kdialog and applies on OK.
-- **Save DPI to mouse memory**: writes the DPI into the mouse's onboard profile, so it sticks after power-off and works on any computer. This is opt-in and heavily guarded (see *Safety*).
-- Remembers your last DPI and puts it back when the mouse wakes up or reconnects.
-- Optional start on login. Tiny footprint: one background thread, polls the battery every 5 minutes (`poll_seconds` in the config).
+## ⚠️ Supported mouse
 
-Tested on: PRO X Superlight (1st gen, reports itself as "PRO X Wireless") on LIGHTSPEED receiver `046D:C547`, firmware HID++ 4.2, profile format 4, 255-byte sectors.
+This app is made for, and tested with, **one mouse only**:
+
+| | |
+|---|---|
+| Mouse | **Logitech PRO X Superlight** (1st generation) |
+| Sensor | HERO 25K, 100–25,600 DPI |
+| Connection | LIGHTSPEED USB receiver, or the USB cable |
+| How to recognise it | micro-USB port on the front, no DPI button on top; in this app it reports itself as "PRO X Wireless" |
+
+**Not supported:** Superlight 2, Superlight 2 DEX, G Pro Wireless, G305/G502 and every other mouse. They might connect, but nothing is tested for them, and saving to mouse memory assumes the Superlight's memory layout. Please don't use it with other mice.
+
+## What it does
+
+- **Battery on the tray icon**: big percentage digits plus a small battery bar. Green, yellow below 35%, red below 15%, blue while charging, grey "–" when the mouse is asleep or off.
+- **Right-click (or left-click) the icon** for the menu:
+  - **Battery: 93%**: click it to refresh right away.
+  - **DPI ›**: quick presets (400, 800, 1200, 1600, 3200, 6400).
+  - **Set DPI…**: a slider from 100 to 25,600. The DPI changes as you let go, so you can feel it straight away. OK keeps it, Cancel puts back the old value.
+  - **Save to mouse memory**: stores the current DPI inside the mouse, so it survives power-off and works on any PC. It asks first and makes a backup.
+  - **Recovery ›**: restore the last backup, restore the factory profile, or open the backups folder.
+  - **Edit DPI presets…**: opens the settings file (see below).
+  - **Refresh now**, **Start with Windows** (on/off), **Quit**.
+- **Hover over the icon** to see e.g. "Superlight PRO: 93% • 800 DPI".
+- It remembers your last DPI and puts it back when the mouse wakes up or reconnects.
+
+## How light is it?
+
+- **About 0.3 MB of RAM** when idle on Windows (Task Manager's "Memory" column), around 2 MB for a moment while the menu is open.
+- Checks the battery **every 5 minutes**. When the mouse sleeps it checks every few seconds whether it's back.
+- 1.2 MB program, no background services, no internet access, no telemetry, no admin rights.
 
 ## Install
 
-| OS | File |
-|----|------|
-| Windows 10/11 | `superlight-tray-<ver>-setup.exe`: installer, no admin needed, shows up in *Installed apps*. Or `superlight-tray-portable.exe` with no install. |
-| Debian 11+, Ubuntu 22.04+, Mint, Pop!_OS | `superlight-tray_<ver>_amd64.deb` |
-| Fedora, Rocky Linux / RHEL / Alma 8 & 9 | `superlight-tray-<ver>-1.x86_64.rpm` |
-| anything else | `superlight-tray-<ver>-linux-x86_64.tar.gz` |
+### Windows 10 / 11
 
-```sh
-sudo apt install ./superlight-tray_*_amd64.deb      # Debian/Ubuntu
-sudo dnf install ./superlight-tray-*.x86_64.rpm     # Fedora/Rocky
+Download **`superlight-tray-<version>-setup.exe`** from [Releases](../../releases) and run it.
+- No admin prompt; it installs just for you.
+- Options during setup: **start when you sign in** (on by default) and **desktop shortcut** (off by default).
+- Uninstall from **Settings → Apps → Installed apps → Superlight Tray**. It asks whether to also delete your settings and backups.
+
+Prefer no installer? Use `superlight-tray-portable.exe` instead.
+
+### Linux
+
+| Distro | File | Install |
+|---|---|---|
+| Debian, Ubuntu, Mint, Pop!_OS | `.deb` | `sudo apt install ./superlight-tray_*_amd64.deb` |
+| Fedora, Rocky Linux, RHEL, Alma (8 and 9) | `.rpm` | `sudo dnf install ./superlight-tray-*.x86_64.rpm` |
+
+After installing, **unplug and replug the receiver once**. Then start "Superlight Tray" from your app menu.
+
+**GNOME users** (Fedora, Rocky): GNOME has no tray by default. Install the AppIndicator extension (`sudo dnf install gnome-shell-extension-appindicator`; on Rocky it's in EPEL), then log out and back in. KDE, XFCE, Cinnamon, MATE and Ubuntu work out of the box.
+
+The **Set DPI** slider on Linux needs `zenity` (GNOME/GTK) or `kdialog` (KDE). Most desktops already have one.
+
+Uninstall: `sudo apt remove superlight-tray` or `sudo dnf remove superlight-tray`.
+
+## Before you start
+
+**Close G HUB.** G HUB takes over the mouse and the two will fight over it.
+
+## Settings
+
+Change them with **Edit DPI presets…** in the menu, then restart the app.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `presets` | `[400, 800, 1200, 1600, 3200, 6400]` | DPI values in the DPI menu (100–25,600, steps of 50) |
+| `poll_seconds` | `300` | How often the battery is checked, in seconds (10–3600) |
+| `reapply_on_connect` | `true` | Put your last DPI back when the mouse wakes up or reconnects |
+| `last_dpi` | — | Saved automatically; the DPI you picked last |
+
+Where things are kept:
+
+| | Windows | Linux |
+|---|---|---|
+| Settings | `%APPDATA%\superlight-tray\config\config.toml` | `~/.config/superlight-tray/config.toml` |
+| Backups and log | `%APPDATA%\superlight-tray\data\` | `~/.local/share/superlight-tray/` |
+
+## Is saving to the mouse safe?
+
+Yes, it's built to be careful:
+
+- Changing DPI from the menu or slider is **temporary** until you press **Save to mouse memory**. Nothing can break there.
+- When you save, the app **backs up** the mouse's profile first, changes **only the DPI**, then **reads it back to check**. If anything doesn't match, it puts the old profile back automatically.
+- It can't touch the mouse's **firmware**; that part of the mouse is blocked in the code.
+- If something ever goes wrong, the mouse falls back to its built-in factory profile, and **Recovery** in the menu can restore your backup or the factory profile.
+- Saving is refused when the battery is below 15%.
+
+## Privacy
+
+The app talks to the mouse only to read the battery and set DPI. **It can't see your mouse movement, clicks or keystrokes**: it never opens those channels, and the mouse features that could redirect them are blocked. On Linux the installed permission rule only opens the settings channel, so other programs can't use it to spy on your input either.
+
+## Command line (optional)
+
+For troubleshooting, or if you prefer a terminal:
+
+```
+superlight-tray --probe            show what the app sees (changes nothing)
+superlight-tray --set-dpi 1600     set DPI until the mouse powers off
+superlight-tray --save-dpi 1600    save DPI to the mouse (asks first)
+superlight-tray --dump             back up the mouse profile to a file
+superlight-tray --restore <file>   put a backup back on the mouse
+superlight-tray --factory-reset-profile
 ```
 
-**Windows installer:** installs to `%LOCALAPPDATA%\Programs\Superlight Tray`, adds a Start menu entry and optionally starts the app at sign-in. Uninstall from *Settings → Apps → Installed apps*. That closes the tray and removes the startup entry, then asks whether to delete your settings and backups too (No by default).
-
-**Linux packages** show up in your package manager and app menu. Remove with `sudo apt remove superlight-tray` or `sudo dnf remove superlight-tray`. Your settings in `~/.config/superlight-tray`, backups in `~/.local/share/superlight-tray` and the autostart file `~/.config/autostart/superlight-tray.desktop` stay behind, as with most Linux apps. Delete them by hand for a clean slate.
-
-The packages install a udev rule (`/usr/lib/udev/rules.d/60-superlight-tray.rules`) so your user can access the receiver without root. **Unplug and replug the receiver once after installing.** With the tarball, copy that rule yourself, then run `sudo udevadm control --reload-rules`.
-
-**GNOME** (Fedora Workstation, Rocky with GNOME) has no tray by default. Install and enable the AppIndicator extension:
-`sudo dnf install gnome-shell-extension-appindicator` (Rocky: from EPEL), then log out and back in. Ubuntu, KDE, XFCE, Cinnamon and MATE work out of the box.
-
-Close **G HUB** first. It switches the mouse to "host mode" and fights over the receiver.
-
-## Command line
-
-All recovery tools also work without the tray:
+## Building from source
 
 ```
-superlight-tray --probe                 read-only report (features, battery, DPI, profiles)
-superlight-tray --set-dpi 1600          set DPI live (RAM only)
-superlight-tray --save-dpi 1600         save into the onboard profile (asks first)
-superlight-tray --dump                  back up every profile sector to a file
-superlight-tray --restore <backup.json> write a backup back (asks first)
-superlight-tray --factory-reset-profile copy the factory ROM profile over the user profile
-superlight-tray --backups               show where backups are stored
-```
-
-Files:
-- Windows: config `%APPDATA%\superlight-tray\config\config.toml`; backups and log in `%APPDATA%\superlight-tray\data\`
-- Linux: config `~/.config/superlight-tray/config.toml`; backups and log in `~/.local/share/superlight-tray/`
-
-Edit `presets = [400, 800, 1200, 1600, 3200, 6400]` in the config to change the menu (100–25600, steps of 50). Set `SUPERLIGHT_DEBUG=1` for a verbose log.
-
-## Safety and disaster recovery
-
-The mouse's *firmware* can't be touched by this program. The HID++ layer has an allow-list: only the features for root, feature set, firmware info, device name, battery, DPI and onboard profiles can be addressed at all. DFU, firmware-update, reset, GPIO and manufacturing features are blocked in code (`crates/hidpp/src/safety.rs`, with unit tests).
-
-- **DPI from the menu** changes the sensor in RAM only. It's gone after a power cycle, so there's nothing to break.
-- **Save to mouse memory** writes exactly one 255-byte *profile* sector, and only after all of these pass:
-  1. Onboard mode is active, the profile format is one we know, and the active profile is a user sector. ROM sectors and the profile directory are never written.
-  2. Battery is above 15%. The sector reads back identically twice (the wireless link is stable) and its CRC is valid.
-  3. A backup (`.json` and `.bin`) is written, fsynced and read back. If that fails, nothing is written.
-  4. Only the 2 bytes of the active DPI slot and the CRC may change. Anything else aborts.
-  5. After writing, the sector is read back and compared byte for byte. If it differs, the original is written back and verified automatically.
-- **Worst case**, a sector with a bad CRC: the firmware ignores it and runs the built-in factory profile. Use the tray's *Recovery → Restore last backup*, or *Restore factory profile* (copies the ROM profile, 800 DPI default, back to the user sector). Both also exist as CLI commands. Every restore makes a fresh backup of the current state first.
-
-## Privacy and security
-
-- **It can't watch your input.** The app opens only the receiver's vendor-specific HID++ settings channel, never the mouse/keyboard input channels. HID++ features that could reroute movement, clicks or wheel to that channel (button spy `0x8110`, reprogrammable keys `0x1B04`, analysis mode `0x2250`, wheel divert, …) are blocked by the allow-list, and unit tests check this. Unrelated messages from the receiver are dropped, never stored or logged.
-- **Linux udev rule** opens up only the HID++ interface (receiver interface 2, cable interface 1). Mouse movement and keystrokes stay root-only.
-- **No network code** and no telemetry. No admin rights: the Windows installer is per-user, and the app never asks for elevation.
-- A broken or fake device can't crash it: replies are bounds-checked and fuzz-style tests feed it garbage.
-- What it can't protect against: a program already running as *your* user can talk to the mouse directly, with or without this app, so the app doesn't widen that.
-
-Idle memory on Windows is about 0.3 MB in Task Manager. A few seconds after any activity, pages it isn't using go back to Windows.
-
-## Building
-
-```sh
 cargo test --workspace
-cargo build --release            # target/release/superlight-tray(.exe)
-cargo install cargo-deb cargo-generate-rpm
-cargo deb -p superlight-tray --no-build
-cargo generate-rpm -p crates/app
+cargo build --release
 ```
 
-Linux needs no system libraries to build (pure-Rust hidraw and D-Bus). Release binaries are built on Rocky Linux 8 (glibc 2.28), so they run on every distro listed above.
+GitHub Actions builds the Windows installer, the Linux packages and a release automatically when a `v*` tag is pushed.
 
-On Windows, if linking fails with `LNK1104` the checkout path is too long. Set `CARGO_TARGET_DIR` to a short path.
+---
 
-## Layout
-
-```
-crates/hidpp   HID++ 2.0 protocol, safety allow-list, battery / DPI / onboard profiles (unit-tested with a simulated mouse)
-crates/app     tray (Windows: tray-icon, Linux: ksni), device worker thread, icon renderer, backups, CLI
-packaging/     udev rule, .desktop, package scripts
-```
-
-License: MIT. Not affiliated with Logitech.
+MIT license. Not affiliated with Logitech.
