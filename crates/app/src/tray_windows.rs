@@ -168,6 +168,11 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
         let _ = tray.set_icon(tray_icon_for(s));
     };
 
+    // Idle memory: a few seconds after the last activity (menu, hover, battery
+    // update) hand untouched pages back to Windows. Keeps idle RAM < 3 MB.
+    let mut last_activity = std::time::Instant::now();
+    let mut trimmed = false;
+
     let mut msg: MSG = unsafe { std::mem::zeroed() };
     loop {
         let r = unsafe { GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) };
@@ -177,6 +182,15 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
         unsafe {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
+        }
+        if msg.message == WM_TIMER {
+            if !trimmed && last_activity.elapsed() >= std::time::Duration::from_secs(3) {
+                platform::trim_memory();
+                trimmed = true;
+            }
+        } else {
+            last_activity = std::time::Instant::now();
+            trimmed = false;
         }
 
         let mut changed = false;

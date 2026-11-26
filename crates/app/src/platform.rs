@@ -46,6 +46,16 @@ mod imp {
         let _ = std::process::Command::new("explorer").arg(p).spawn();
     }
 
+    /// Give pages that are not in use back to Windows (like Windows does itself
+    /// under memory pressure). Nothing is freed or lost: a page that is needed
+    /// again is faulted back in from RAM's standby list, which is cheap.
+    pub fn trim_memory() {
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetProcessWorkingSetSize};
+        unsafe {
+            SetProcessWorkingSetSize(GetCurrentProcess(), usize::MAX, usize::MAX);
+        }
+    }
+
     /// Open a text file in Notepad. Uses Notepad's full path and starts it in the
     /// file's own folder: the Windows 11 Notepad reports "path not found" when it
     /// inherits a working directory it cannot use (e.g. a very long one).

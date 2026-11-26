@@ -69,6 +69,16 @@ The mouse's *firmware* can't be touched by this program. The HID++ layer has an 
   5. After writing, the sector is read back and compared byte for byte. If it differs, the original is written back and verified automatically.
 - **Worst case**, a sector with a bad CRC: the firmware ignores it and runs the built-in factory profile. Use the tray's *Recovery → Restore last backup*, or *Restore factory profile* (copies the ROM profile, 800 DPI default, back to the user sector). Both also exist as CLI commands. Every restore makes a fresh backup of the current state first.
 
+## Privacy and security
+
+- **It can't watch your input.** The app opens only the receiver's vendor-specific HID++ settings channel, never the mouse/keyboard input channels. HID++ features that could reroute movement, clicks or wheel to that channel (button spy `0x8110`, reprogrammable keys `0x1B04`, analysis mode `0x2250`, wheel divert, …) are blocked by the allow-list, and unit tests check this. Unrelated messages from the receiver are dropped, never stored or logged.
+- **Linux udev rule** opens up only the HID++ interface (receiver interface 2, cable interface 1). Mouse movement and keystrokes stay root-only.
+- **No network code** and no telemetry. No admin rights: the Windows installer is per-user, and the app never asks for elevation.
+- A broken or fake device can't crash it: replies are bounds-checked and fuzz-style tests feed it garbage.
+- What it can't protect against: a program already running as *your* user can talk to the mouse directly, with or without this app, so the app doesn't widen that.
+
+Idle memory on Windows is about 0.3 MB in Task Manager. A few seconds after any activity, pages it isn't using go back to Windows.
+
 ## Building
 
 ```sh
