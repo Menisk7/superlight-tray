@@ -261,3 +261,66 @@ pub(crate) mod tests {
         assert!(matches!(d.feature_index(0x00D0), Err(Error::Blocked(_))));
     }
 }
+
+#[cfg(test)]
+mod hostile_device_tests {
+    //! A malicious or broken device must never crash the app or make it
+    //! misbehave: every reply below is garbage or crafted.
+    use super::tests::fake_mouse;
+    use crate::feature::*;
+    use crate::{battery, dpi, onboard};
+
+    fn hostile(reply: Vec<u8>) -> crate::Device {
+        fake_mouse(
+            vec![
+                (ADJUSTABLE_DPI, 5),
+                (UNIFIED_BATTERY, 6),
+                (ONBOARD_PROFILES, 7),
+                (DEVICE_NAME, 8),
+                (FEATURE_SET, 1),
+            ],
+            Box::new(move |_, _, _| Some(reply.clone())),
+        )
+    }
+
+    #[test]
+    fn garbage_replies_never_panic() {
+        let patterns: Vec<Vec<u8>> = vec![
+            vec![],
+            vec![0xFF; 16],
+            vec![0x00; 16],
+            vec![0xFF, 0xFF, 0xE0, 0x00, 0x00, 0x64, 0x00, 0x00],
+            vec![0x00, 0x64, 0x00, 0xFF, 0xE0, 0x32, 0x00, 0x00], // range end before start
+            vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01],
+            (0..16).collect(),
+            (0..16).rev().collect(),
+        ];
+        for p in patterns {
+            let mut d = hostile(p.clone());
+            let _ = d.name();
+            let _ = d.list_features();
+            let _ = battery::read(&mut d);
+            if let Ok(c) = dpi::caps(&mut d) {
+                for v in [0u16, 1, 50, 100, 800, 25600, 50000, u16::MAX] {
+                    let _ = c.supports(v);
+                    let _ = c.clamp(v);
+                }
+                let _ = dpi::set(&mut d, &c, 800);
+            }
+            let _ = dpi::get(&mut d);
+            if let Ok(info) = onboard::info(&mut d) {
+                // bounded: never read a giant sector from a lying device in tests
+                let _ = onboard::read_sector(&mut d, 1, info.sector_size.min(512));
+            }
+            let _ = onboard::snapshot(&mut d);
+            let _ = onboard::save_dpi(&mut d, 800, |_| Ok(()));
+            let _ = onboard::restore_factory_profile(&mut d);
+        }
+    }
+
+    #[test]
+    fn battery_percentage_is_clamped() {
+        let mut d = hostile(vec![250, 0, 0, 0]);
+        assert!(battery::read(&mut d).unwrap().percent <= 100);
+    }
+}

@@ -99,6 +99,40 @@ mod tests {
         assert!(check_request(ONBOARD_PROFILES, 0x5).is_ok());
     }
 
+    /// Features that could make the mouse report movement, buttons or wheel
+    /// over the HID++ channel the app listens on (i.e. spy on the user).
+    #[test]
+    fn input_spying_features_are_unreachable() {
+        let spying = [
+            0x1B00, // reprogrammable keys v1
+            0x1B04, // reprogrammable keys v4: can divert buttons and raw XY to HID++
+            0x1B05, // reprogrammable keys v5
+            0x2110, // smart shift
+            0x2121, // hi-res wheel: can divert wheel to HID++
+            0x2130, // ratchet wheel
+            0x2150, // thumb wheel: can divert
+            0x2250, // analysis mode: raw sensor movement
+            0x6100, 0x6110, 0x6120, // touchpad raw XY
+            0x8110, // mouse button spy (present on the Superlight!)
+            0x1E00, 0x1E01, 0x1E02, // test/debug access
+        ];
+        for f in spying {
+            for func in 0..16 {
+                assert!(check_request(f, func).is_err(), "0x{f:04X}/{func} reachable");
+                assert!(check_guarded_write(f, func).is_err());
+            }
+        }
+    }
+
+    /// The allow-list is exactly this; adding a feature must be a conscious change.
+    #[test]
+    fn allow_list_is_pinned() {
+        assert_eq!(
+            ALLOWED_FEATURES,
+            &[0x0000, 0x0001, 0x0003, 0x0005, 0x1000, 0x1001, 0x1004, 0x2201, 0x8100]
+        );
+    }
+
     #[test]
     fn dpi_set_is_allowed() {
         assert!(check_request(ADJUSTABLE_DPI, 3).is_ok());

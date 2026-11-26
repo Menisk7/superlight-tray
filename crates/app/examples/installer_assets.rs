@@ -41,7 +41,11 @@ fn bmp(size: u32, bg: [u8; 3]) -> Vec<u8> {
 fn main() {
     let dir = std::path::PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| ".".into()));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("superlight-tray.ico"), icon::ico(&[16, 20, 24, 32, 40, 48, 64, 256])).unwrap();
+    std::fs::write(
+        dir.join("superlight-tray.ico"),
+        icon::ico(&[16, 20, 24, 32, 40, 48, 64, 256]),
+    )
+    .unwrap();
     // dark tile so the white digits read well in the installer header
     std::fs::write(dir.join("wizard-small.bmp"), bmp(58, [32, 32, 32])).unwrap();
     println!("wrote assets to {}", dir.display());

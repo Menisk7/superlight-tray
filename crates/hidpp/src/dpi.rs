@@ -58,6 +58,10 @@ pub fn parse_dpi_list(words: &[u16]) -> Result<DpiCaps> {
                 .get(i + 1)
                 .filter(|v| **v != 0 && **v < 0xE000)
                 .ok_or_else(|| Error::Protocol("DPI step without end value".into()))?;
+            // a lying device could send "end below start"; never trust it
+            if to <= from {
+                return Err(Error::Protocol(format!("DPI range {from}..{to} is backwards")));
+            }
             ranges.push((from, to, step.max(1)));
             i += 2;
         } else {
@@ -137,5 +141,8 @@ mod tests {
         assert!(parse_dpi_list(&[0xE032, 800]).is_err());
         assert!(parse_dpi_list(&[0]).is_err());
         assert!(parse_dpi_list(&[100, 0xE032, 0]).is_err());
+        // hostile device: range end before start used to panic in clamp()
+        assert!(parse_dpi_list(&[25600, 0xE032, 100, 0]).is_err());
+        assert!(parse_dpi_list(&[800, 0xE032, 800, 0]).is_err());
     }
 }

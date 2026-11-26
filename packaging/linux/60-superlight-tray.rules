@@ -1,4 +1,18 @@
-# superlight-tray: let the logged-in desktop user talk to Logitech LIGHTSPEED
-# receivers and the PRO X Superlight (USB cable) through hidraw, without root.
-# Only the HID++ control interface is used; this does not grant access to anything else.
-KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c539|c53a|c53d|c53f|c545|c547|c54d|c094|c09b|c09d", TAG+="uaccess"
+# superlight-tray: let the logged-in desktop user use the HID++ *settings* channel of
+# Logitech LIGHTSPEED receivers and the PRO X Superlight (USB cable), without root.
+#
+# Security: only the vendor-specific HID++ interface is opened up. The interfaces that
+# carry mouse movement, clicks and keystrokes stay root-only, so no program can use this
+# rule to watch your input.
+#   LIGHTSPEED receivers: interface 0 = mouse, 1 = keyboard, 2 = HID++  -> only 2
+#   Superlight on cable:  interface 0 = mouse, 1 = HID++                -> only 1
+
+ACTION=="remove", GOTO="superlight_tray_end"
+SUBSYSTEM!="hidraw", GOTO="superlight_tray_end"
+IMPORT{builtin}="usb_id"
+ENV{ID_VENDOR_ID}!="046d", GOTO="superlight_tray_end"
+
+ENV{ID_MODEL_ID}=="c539|c53a|c53d|c53f|c545|c547|c54d", ENV{ID_USB_INTERFACE_NUM}=="02", TAG+="uaccess"
+ENV{ID_MODEL_ID}=="c094|c09b|c09d", ENV{ID_USB_INTERFACE_NUM}=="01", TAG+="uaccess"
+
+LABEL="superlight_tray_end"

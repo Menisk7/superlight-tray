@@ -102,7 +102,12 @@ mod imp {
     pub fn single_instance() -> bool {
         use std::os::linux::net::SocketAddrExt;
         use std::os::unix::net::{SocketAddr, UnixListener};
-        let Ok(addr) = SocketAddr::from_abstract_name(b"superlight-tray-instance") else {
+        // Abstract socket names are shared by all users, so include the uid:
+        // otherwise another user could squat the name and block our tray.
+        use std::os::unix::fs::MetadataExt;
+        let uid = std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap_or(0);
+        let name = format!("superlight-tray-instance-{uid}");
+        let Ok(addr) = SocketAddr::from_abstract_name(name.as_bytes()) else {
             return true;
         };
         match UnixListener::bind_addr(&addr) {
