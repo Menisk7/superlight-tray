@@ -217,7 +217,7 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
                 let c = cfg.lock().unwrap().clone();
                 c.save();
                 let p = config::config_dir().join("config.toml");
-                let _ = std::process::Command::new("notepad").arg(&p).spawn();
+                platform::edit_file(&p);
                 notify(
                     "DPI presets".into(),
                     "Edit 'presets' in the file that opened, save it, then restart Superlight Tray.".into(),

@@ -67,7 +67,7 @@ struct Worker {
 impl Worker {
     fn run(mut self, rx: Receiver<Cmd>) {
         let mut next_poll = Instant::now();
-        let mut last_sent = None;
+        let mut sender = StateSender::default();
         loop {
             if Instant::now() >= next_poll {
                 self.poll();
@@ -78,15 +78,12 @@ impl Worker {
                 };
                 next_poll = Instant::now() + Duration::from_secs(secs);
             }
-            if last_sent.as_ref() != Some(&self.state) {
-                (self.notify)(Event::State(self.state.clone()));
-                last_sent = Some(self.state.clone());
-            }
+            sender.send_if_changed(&self.state, &self.notify);
             let wait = next_poll.saturating_duration_since(Instant::now());
             match rx.recv_timeout(wait) {
                 Ok(cmd) => {
                     self.state.busy = true;
-                    (self.notify)(Event::State(self.state.clone()));
+                    sender.send_if_changed(&self.state, &self.notify);
                     self.handle(cmd);
                     self.state.busy = false;
                     if self.dev.is_none() {
@@ -271,5 +268,53 @@ impl Worker {
         let d = self.dev.as_mut()?;
         self.state.dpi = dpi::get(d).ok().map(|x| x.0);
         Some(())
+    }
+}
+
+/// Sends a state snapshot to the UI only when it differs from the last one sent.
+/// Every send goes through here, so the "busy" snapshot is remembered too and the
+/// following "not busy" snapshot is never mistaken for "unchanged".
+#[derive(Default)]
+struct StateSender {
+    last: Option<State>,
+}
+
+impl StateSender {
+    fn send_if_changed(&mut self, s: &State, notify: &dyn Fn(Event)) {
+        if self.last.as_ref() != Some(s) {
+            notify(Event::State(s.clone()));
+            self.last = Some(s.clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    #[test]
+    fn busy_flag_is_always_cleared_in_the_ui() {
+        // Regression: a command that changes nothing but `busy` (e.g. saving the
+        // DPI that is already active) left the menu greyed out forever.
+        let seen = RefCell::new(Vec::<bool>::new());
+        let notify = |e: Event| {
+            if let Event::State(s) = e {
+                seen.borrow_mut().push(s.busy);
+            }
+        };
+        let mut sender = StateSender::default();
+        let mut s = State {
+            connected: true,
+            dpi: Some(1600),
+            ..Default::default()
+        };
+        sender.send_if_changed(&s, &notify);
+        s.busy = true;
+        sender.send_if_changed(&s, &notify);
+        s.busy = false; // command finished, nothing else changed
+        sender.send_if_changed(&s, &notify);
+        sender.send_if_changed(&s, &notify); // no duplicate
+        assert_eq!(*seen.borrow(), vec![false, true, false]);
     }
 }

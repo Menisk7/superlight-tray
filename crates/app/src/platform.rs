@@ -45,6 +45,20 @@ mod imp {
     pub fn open_path(p: &Path) {
         let _ = std::process::Command::new("explorer").arg(p).spawn();
     }
+
+    /// Open a text file in Notepad. Uses Notepad's full path and starts it in the
+    /// file's own folder: the Windows 11 Notepad reports "path not found" when it
+    /// inherits a working directory it cannot use (e.g. a very long one).
+    pub fn edit_file(p: &Path) {
+        let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        let notepad = Path::new(&root).join("System32").join("notepad.exe");
+        let dir = p.parent().map(Path::to_path_buf).unwrap_or_else(std::env::temp_dir);
+        let r = std::process::Command::new(&notepad).arg(p).current_dir(&dir).spawn();
+        if let Err(e) = r {
+            log::warn!("notepad failed ({e}); opening folder instead");
+            open_path(&dir);
+        }
+    }
 }
 
 #[cfg(not(windows))]
