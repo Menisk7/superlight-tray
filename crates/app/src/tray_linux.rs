@@ -31,15 +31,6 @@ fn item(label: impl Into<String>, enabled: bool, f: impl Fn(&mut SlTray) + Send 
     .into()
 }
 
-fn label(text: impl Into<String>) -> MenuItem<SlTray> {
-    StandardItem {
-        label: text.into(),
-        enabled: false,
-        ..Default::default()
-    }
-    .into()
-}
-
 /// A submenu whose only entry performs the action: a confirmation that works on
 /// every desktop without needing a dialog toolkit.
 fn confirm_sub(text: String, enabled: bool, yes: &str, f: impl Fn(&mut SlTray) + Send + 'static) -> MenuItem<SlTray> {
@@ -102,7 +93,10 @@ impl Tray for SlTray {
             .collect();
         let save_dpi = s.dpi;
         vec![
-            label(ui::battery_label(s)),
+            // enabled so it reads as normal text, not grey; clicking it refreshes
+            item(ui::battery_label(s), true, |t| {
+                let _ = t.cmd.send(Cmd::Refresh);
+            }),
             MenuItem::Separator,
             SubMenu {
                 label: ui::dpi_label(s, &self.presets),

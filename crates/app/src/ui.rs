@@ -34,11 +34,8 @@ pub fn dpi_label(s: &State, presets: &[u16]) -> String {
     }
 }
 
-pub fn save_label(s: &State) -> String {
-    match s.dpi {
-        Some(d) => format!("Save {d} DPI to mouse memory…"),
-        None => "Save DPI to mouse memory…".into(),
-    }
+pub fn save_label(_s: &State) -> String {
+    "Save to mouse memory".into()
 }
 
 pub fn tooltip(s: &State) -> String {

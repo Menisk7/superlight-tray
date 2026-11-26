@@ -97,7 +97,8 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
 
     let presets = cfg.lock().unwrap().presets.clone();
     let it = Items {
-        battery: MenuItem::new("Looking for mouse…", false, None),
+        // enabled so it reads as normal text, not grey; clicking it refreshes
+        battery: MenuItem::new("Looking for mouse…", true, None),
         dpi: Submenu::new("DPI", true),
         presets: presets
             .iter()
@@ -256,7 +257,7 @@ pub fn run(cfg: Arc<Mutex<Config>>) -> Result<()> {
                     "Edit 'presets' in the file that opened, save it, then restart Superlight Tray.".into(),
                     false,
                 );
-            } else if id == it.refresh.id() {
+            } else if id == it.refresh.id() || id == it.battery.id() {
                 let _ = cmd.send(Cmd::Refresh);
             } else if id == it.autostart.id() {
                 // Flip what the registry says, not the tick (the menu toggles the
