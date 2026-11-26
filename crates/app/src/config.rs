@@ -21,7 +21,7 @@ impl Default for Config {
             presets: vec![400, 800, 1200, 1600, 3200, 6400],
             last_dpi: None,
             reapply_on_connect: true,
-            poll_seconds: 60,
+            poll_seconds: 300,
         }
     }
 }

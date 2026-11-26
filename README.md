@@ -7,7 +7,7 @@ A small tray app for the **Logitech PRO X Superlight** on Windows and Linux. Wri
 - **Set DPI…** opens a slider (100–25600: steps of 50 up to 3200, coarser above). The DPI applies as you release the slider, so you can try it on the spot. **OK** keeps it, **Cancel**/Esc puts the old value back. Arrow keys move one step, Page Up/Down move 8. On Linux the slider comes from zenity or kdialog and applies on OK.
 - **Save DPI to mouse memory**: writes the DPI into the mouse's onboard profile, so it sticks after power-off and works on any computer. This is opt-in and heavily guarded (see *Safety*).
 - Remembers your last DPI and puts it back when the mouse wakes up or reconnects.
-- Optional start on login. Tiny footprint: one background thread, polls the battery once a minute.
+- Optional start on login. Tiny footprint: one background thread, polls the battery every 5 minutes (`poll_seconds` in the config).
 
 Tested on: PRO X Superlight (1st gen, reports itself as "PRO X Wireless") on LIGHTSPEED receiver `046D:C547`, firmware HID++ 4.2, profile format 4, 255-byte sectors.
 
