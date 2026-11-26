@@ -3,6 +3,14 @@
 mod backup;
 mod cli;
 mod config;
+mod icon;
+mod platform;
+#[cfg(target_os = "linux")]
+mod tray_linux;
+#[cfg(windows)]
+mod tray_windows;
+mod ui;
+mod worker;
 
 use std::path::PathBuf;
 
@@ -21,7 +29,21 @@ fn main() {
         std::process::exit(code);
     }
     init_log(false);
-    eprintln!("tray not built yet; try --probe");
+    log::info!("superlight-tray {} starting", env!("CARGO_PKG_VERSION"));
+    if !platform::single_instance() {
+        log::warn!("already running");
+        return;
+    }
+    let cfg = std::sync::Arc::new(std::sync::Mutex::new(config::Config::load()));
+    #[cfg(windows)]
+    let r = tray_windows::run(cfg);
+    #[cfg(target_os = "linux")]
+    let r = tray_linux::run(cfg);
+    if let Err(e) = r {
+        log::error!("tray failed: {e:#}");
+        eprintln!("tray failed: {e:#}");
+        std::process::exit(1);
+    }
 }
 
 fn run_cli(args: &[String]) -> anyhow::Result<()> {
