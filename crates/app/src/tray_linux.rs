@@ -180,12 +180,7 @@ impl Tray for SlTray {
 /// Returns Ok(None) when cancelled, Err(()) when neither tool is installed.
 fn slider_dialog(current: u16, min: u16, max: u16, step: u16) -> Result<Option<u16>, ()> {
     use std::process::Command;
-    let (cur, min, max, step) = (
-        current.to_string(),
-        min.to_string(),
-        max.to_string(),
-        step.to_string(),
-    );
+    let (cur, min, max, step) = (current.to_string(), min.to_string(), max.to_string(), step.to_string());
     let text = "Drag to choose the DPI";
     let tries: [(&str, Vec<&str>); 2] = [
         (

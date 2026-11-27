@@ -43,12 +43,7 @@ impl DpiCaps {
     /// The finest step the mouse reports (50 on the Superlight); 50 when it only
     /// gives a plain list.
     pub fn step(&self) -> u16 {
-        self.ranges
-            .iter()
-            .map(|r| r.2)
-            .filter(|s| *s > 0)
-            .min()
-            .unwrap_or(50)
+        self.ranges.iter().map(|r| r.2).filter(|s| *s > 0).min().unwrap_or(50)
     }
 
     /// Closest supported value.
