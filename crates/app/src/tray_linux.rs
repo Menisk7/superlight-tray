@@ -178,9 +178,14 @@ impl Tray for SlTray {
 /// DPI slider via zenity (GNOME/GTK desktops) or kdialog (KDE). These sliders are
 /// linear, so the result is snapped to the nearest value the mouse supports.
 /// Returns Ok(None) when cancelled, Err(()) when neither tool is installed.
-fn slider_dialog(current: u16, min: u16, max: u16) -> Result<Option<u16>, ()> {
+fn slider_dialog(current: u16, min: u16, max: u16, step: u16) -> Result<Option<u16>, ()> {
     use std::process::Command;
-    let (cur, min, max) = (current.to_string(), min.to_string(), max.to_string());
+    let (cur, min, max, step) = (
+        current.to_string(),
+        min.to_string(),
+        max.to_string(),
+        step.to_string(),
+    );
     let text = "Drag to choose the DPI";
     let tries: [(&str, Vec<&str>); 2] = [
         (
@@ -196,14 +201,14 @@ fn slider_dialog(current: u16, min: u16, max: u16) -> Result<Option<u16>, ()> {
                 "--max-value",
                 &max,
                 "--step",
-                "50",
+                &step,
                 "--value",
                 &cur,
             ],
         ),
         (
             "kdialog",
-            vec!["--title", ui::SET_DPI_TITLE, "--slider", text, &min, &max, "50"],
+            vec!["--title", ui::SET_DPI_TITLE, "--slider", text, &min, &max, &step],
         ),
     ];
     for (prog, args) in tries {
@@ -224,8 +229,11 @@ fn slider_dialog(current: u16, min: u16, max: u16) -> Result<Option<u16>, ()> {
 
 fn ask_dpi(cmd: Sender<Cmd>, caps: Option<hidpp::dpi::DpiCaps>, current: Option<u16>) {
     let cur = current.unwrap_or(800);
-    let (min, max) = caps.as_ref().map(|c| (c.min, c.max)).unwrap_or((100, 25600));
-    match slider_dialog(cur, min, max) {
+    let (min, max, step) = caps
+        .as_ref()
+        .map(|c| (c.min, c.max, c.step()))
+        .unwrap_or((100, 25600, 50));
+    match slider_dialog(cur, min, max, step) {
         Ok(Some(v)) => {
             let v = caps.as_ref().map(|c| c.clamp(v)).unwrap_or(v);
             let _ = cmd.send(Cmd::SetDpi(v));

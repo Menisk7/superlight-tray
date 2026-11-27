@@ -72,28 +72,15 @@ pub const SET_DPI_TITLE: &str = "Set DPI";
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const SLIDER_TICKS: [u16; 7] = [400, 800, 1600, 3200, 6400, 12800, 25600];
 
-/// Every DPI the slider can stop at. Fine steps where people actually play
-/// (50 up to 3200), coarser above, so 400–3200 gets most of the track.
-/// Only values the mouse supports; the current DPI is always included.
+/// Every DPI the slider can stop at: exactly the values the mouse accepts, in
+/// its own step (50 on the Superlight, across the whole range). Without caps it
+/// falls back to 100..25600 in steps of 50. The current DPI is always included.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn slider_values(caps: Option<&DpiCaps>, current: Option<u16>) -> Vec<u16> {
-    let mut v = Vec::new();
-    let mut d: u32 = 100;
-    while d <= 25600 {
-        v.push(d as u16);
-        d += if d < 3200 {
-            50
-        } else if d < 6400 {
-            100
-        } else if d < 12800 {
-            200
-        } else {
-            400
-        };
-    }
-    if let Some(c) = caps {
-        v.retain(|x| c.supports(*x));
-    }
+    let mut v = match caps {
+        Some(c) => c.values(),
+        None => (100..=25600).step_by(50).collect(),
+    };
     if let Some(cur) = current {
         if !v.contains(&cur) {
             v.push(cur);
@@ -141,29 +128,33 @@ mod tests {
     }
 
     #[test]
-    fn slider_covers_full_range_with_fine_low_steps() {
+    fn slider_uses_mouse_step_over_whole_range() {
         let v = slider_values(Some(&caps()), None);
         assert_eq!(v.first(), Some(&100));
         assert_eq!(v.last(), Some(&25600));
-        assert_eq!(v.len(), 159); // 62 + 32 + 32 + 32 + 1
-        assert!(v.windows(2).all(|w| w[0] < w[1]));
-        // every 50 between 100 and 3200 is reachable
-        for d in (100..=3200).step_by(50) {
+        assert_eq!(v.len(), 511);
+        // every step is exactly 50, also above 3200
+        assert!(v.windows(2).all(|w| w[1] - w[0] == 50));
+        for d in [3250, 6450, 12850, 25550] {
             assert!(v.contains(&d), "{d}");
         }
-        // low range gets well over a third of the track
-        let low = v.iter().filter(|d| **d <= 3200).count();
-        assert!(low * 100 / v.len() > 35);
         for t in SLIDER_TICKS {
             assert!(v.contains(&t));
         }
     }
 
     #[test]
+    fn slider_without_caps_falls_back_to_50() {
+        let v = slider_values(None, None);
+        assert_eq!(v.len(), 511);
+        assert!(v.windows(2).all(|w| w[1] - w[0] == 50));
+    }
+
+    #[test]
     fn slider_keeps_current_custom_value() {
-        let v = slider_values(Some(&caps()), Some(7050));
-        assert!(v.contains(&7050));
-        assert_eq!(v[slider_index(&v, 7050)], 7050);
+        let v = slider_values(Some(&caps()), Some(7075));
+        assert!(v.contains(&7075));
+        assert_eq!(v[slider_index(&v, 7075)], 7075);
         assert!(v.windows(2).all(|w| w[0] < w[1]));
     }
 

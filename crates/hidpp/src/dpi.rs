@@ -24,6 +24,33 @@ impl DpiCaps {
         })
     }
 
+    /// Every value the mouse accepts, ascending (e.g. 100, 150, … 25600 for a
+    /// 100..25600 step-50 sensor).
+    pub fn values(&self) -> Vec<u16> {
+        let mut v = Vec::new();
+        for &(a, b, step) in &self.ranges {
+            if step == 0 {
+                v.push(a);
+            } else {
+                v.extend((a..=b).step_by(step as usize));
+            }
+        }
+        v.sort_unstable();
+        v.dedup();
+        v
+    }
+
+    /// The finest step the mouse reports (50 on the Superlight); 50 when it only
+    /// gives a plain list.
+    pub fn step(&self) -> u16 {
+        self.ranges
+            .iter()
+            .map(|r| r.2)
+            .filter(|s| *s > 0)
+            .min()
+            .unwrap_or(50)
+    }
+
     /// Closest supported value.
     pub fn clamp(&self, dpi: u16) -> u16 {
         let mut best = self.min;
@@ -126,6 +153,11 @@ mod tests {
         assert!(!c.supports(50));
         assert_eq!(c.clamp(830), 850);
         assert_eq!(c.clamp(60000), 25600);
+        assert_eq!(c.step(), 50);
+        let v = c.values();
+        assert_eq!(v.len(), 511);
+        assert_eq!((v[0], v[1], v[510]), (100, 150, 25600));
+        assert!(v.windows(2).all(|w| w[1] - w[0] == 50));
     }
 
     #[test]
@@ -134,6 +166,8 @@ mod tests {
         assert!(c.supports(800));
         assert!(!c.supports(1000));
         assert_eq!(c.clamp(1000), 800);
+        assert_eq!(c.values(), vec![400, 800, 1600]);
+        assert_eq!(c.step(), 50);
     }
 
     #[test]
