@@ -1,4 +1,4 @@
-# Superlight Tray
+# Superlight Tray <img src="assets/logo.png" width="40" height="40" align="bottom" alt="logo">
 
 A tiny tray app for the **Logitech PRO X Superlight**. It shows the battery on the tray icon and lets you change DPI from the menu. No G HUB needed. Works on Windows and Linux.
 

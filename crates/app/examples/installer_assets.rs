@@ -38,7 +38,66 @@ fn bmp(size: u32, bg: [u8; 3]) -> Vec<u8> {
     out
 }
 
+/// Minimal PNG writer (RGBA, uncompressed deflate blocks) — no image crate needed.
+fn png(size: u32) -> Vec<u8> {
+    fn crc32(data: &[u8]) -> u32 {
+        let mut c = 0xFFFF_FFFFu32;
+        for &b in data {
+            c ^= b as u32;
+            for _ in 0..8 {
+                c = if c & 1 != 0 { 0xEDB8_8320 ^ (c >> 1) } else { c >> 1 };
+            }
+        }
+        !c
+    }
+    fn chunk(out: &mut Vec<u8>, kind: &[u8], data: &[u8]) {
+        out.extend((data.len() as u32).to_be_bytes());
+        let mut body = kind.to_vec();
+        body.extend(data);
+        out.extend(&body);
+        out.extend(crc32(&body).to_be_bytes());
+    }
+    let rgba = icon::render(Some(100), false, size);
+    let s = size as usize;
+    let mut raw = Vec::with_capacity((s * 4 + 1) * s);
+    for y in 0..s {
+        raw.push(0); // filter: none
+        raw.extend(&rgba[y * s * 4..(y + 1) * s * 4]);
+    }
+    // zlib stream with stored blocks
+    let mut z = vec![0x78, 0x01];
+    for (i, block) in raw.chunks(65535).enumerate() {
+        let last = (i + 1) * 65535 >= raw.len();
+        z.push(last as u8);
+        z.extend((block.len() as u16).to_le_bytes());
+        z.extend((!(block.len() as u16)).to_le_bytes());
+        z.extend(block);
+    }
+    let (mut a, mut b) = (1u32, 0u32);
+    for &x in &raw {
+        a = (a + x as u32) % 65521;
+        b = (b + a) % 65521;
+    }
+    z.extend(((b << 16) | a).to_be_bytes());
+    let mut out = vec![0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1A, b'\n'];
+    let mut ihdr = Vec::new();
+    ihdr.extend(size.to_be_bytes());
+    ihdr.extend(size.to_be_bytes());
+    ihdr.extend([8, 6, 0, 0, 0]); // 8-bit RGBA
+    chunk(&mut out, b"IHDR", &ihdr);
+    chunk(&mut out, b"IDAT", &z);
+    chunk(&mut out, b"IEND", &[]);
+    out
+}
+
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--logo") {
+        // README logo: cargo run -p superlight-tray --example installer_assets -- --logo assets/logo.png
+        let path = std::env::args().nth(2).unwrap_or_else(|| "logo.png".into());
+        std::fs::write(&path, png(128)).unwrap();
+        println!("wrote {path}");
+        return;
+    }
     let dir = std::path::PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| ".".into()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
