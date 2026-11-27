@@ -14,6 +14,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -45,6 +46,7 @@ jobs:
     # Rocky Linux 8 = glibc 2.28, so the binary runs on Rocky/RHEL 8+, Fedora,
     # Debian 11+ and Ubuntu 20.04+.
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     container: rockylinux:8
     steps:
       - name: Toolchain
@@ -76,14 +78,19 @@ jobs:
   install-test:
     needs: linux
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # No prompts (tzdata etc. would otherwise wait for input forever).
+      DEBIAN_FRONTEND: noninteractive
+      TZ: Etc/UTC
     strategy:
       fail-fast: false
       matrix:
         include:
           - image: debian:12
-            install: apt-get update && apt-get install -y ./dl/*.deb
+            install: apt-get update && apt-get install -y --no-install-recommends ./dl/*.deb
           - image: ubuntu:22.04
-            install: apt-get update && apt-get install -y ./dl/*.deb
+            install: apt-get update && apt-get install -y --no-install-recommends ./dl/*.deb
           - image: fedora:latest
             install: dnf -y install ./dl/*.rpm
           - image: rockylinux:9
@@ -107,6 +114,7 @@ jobs:
     needs: [windows, linux, install-test]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/download-artifact@v4
         with:
